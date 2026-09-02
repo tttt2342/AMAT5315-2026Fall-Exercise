@@ -1,0 +1,2 @@
+Coding agent version: codex-cli 0.152.0
+python3 --version: Python 3.13.5
