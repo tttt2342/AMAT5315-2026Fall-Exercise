@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tutor"
+  short_description: "Chinese AMAT5315 lesson tutoring"
+  default_prompt: "Use $tutor to turn this AMAT5315 lesson into a guided Chinese tutoring session."
