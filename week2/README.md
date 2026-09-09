@@ -129,8 +129,8 @@ published page loads 400 atoms and 200 production frames.
 
 The final screen recording is deliberately not stored in git. Make one take of
 at most two minutes: in a fresh terminal run
-`cargo run --manifest-path md/Cargo.toml --release -- check artifacts` until
-`PASS` appears, then open the
+`make reproduce && cargo run --manifest-path md/Cargo.toml --release -- check artifacts`
+until `PASS` appears, then open the
 Pages link below. Pause near the cold start (`T` about 0.2) and again near
 `T` about 1.0. Explain that the cold `g(r)` has sharp neighbour-shell peaks
 persisting to long range, while the hot run keeps mainly the first peak and
