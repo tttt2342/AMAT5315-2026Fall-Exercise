@@ -48,3 +48,33 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod dimer_tests {
+    use super::{dimer, run_experiment, Euler, VelocityVerlet};
+
+    #[test]
+    fn dimer_integrators_have_expected_energy_behavior() {
+        let initial = dimer();
+        let euler_trace = run_experiment(&Euler, &initial, 0.01, 500);
+        let verlet_trace = run_experiment(&VelocityVerlet, &initial, 0.01, 500);
+
+        let verlet_max_error = verlet_trace
+            .iter()
+            .map(|sample| sample.relative_error.abs())
+            .fold(0.0, f64::max);
+        let euler_final_error = euler_trace
+            .last()
+            .expect("the trace contains the initial sample")
+            .relative_error;
+
+        assert!(
+            verlet_max_error < 1e-3,
+            "velocity-Verlet error was {verlet_max_error}"
+        );
+        assert!(
+            euler_final_error > 0.5,
+            "forward Euler final error was {euler_final_error}"
+        );
+    }
+}
