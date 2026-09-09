@@ -1,5 +1,5 @@
 use clap::{Args, CommandFactory, Parser, Subcommand};
-use md::{FluidResult, IntegratorChoice, RunConfig, check_saved_run};
+use md::{FluidResult, ForceMode, IntegratorChoice, RunConfig, check_saved_run};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -46,6 +46,10 @@ struct RunArgs {
     sample_every: usize,
     #[arg(long, default_value_t = 2026)]
     seed: u64,
+    #[arg(long, value_enum, default_value = "cells")]
+    force: ForceMode,
+    #[arg(long)]
+    ramp_to: Option<f64>,
     #[arg(long, default_value = "artifacts")]
     out: PathBuf,
 }
@@ -54,7 +58,7 @@ fn main() -> FluidResult<()> {
     let cli = Cli::parse();
     match cli.command {
         Some(Command::Run(args)) => {
-            let config = RunConfig::with_parameters(
+            let config = RunConfig::with_parameters_and_options(
                 args.n,
                 args.rho,
                 args.temperature,
@@ -63,6 +67,8 @@ fn main() -> FluidResult<()> {
                 args.steps,
                 args.sample_every,
                 args.seed,
+                args.force,
+                args.ramp_to,
             )?;
             md::run_simulation(&config, &args.out)?;
             println!(

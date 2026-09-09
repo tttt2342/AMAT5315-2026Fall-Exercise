@@ -1,6 +1,6 @@
 use crate::{
-    DEFAULT_CUTOFF, System, Vec2, VelocityVerlet, advance, kinetic_energy, minimum_image,
-    potential_energy, shifted_energy,
+    DEFAULT_CUTOFF, ForceMode, System, Vec2, VelocityVerlet, advance, kinetic_energy,
+    minimum_image, potential_energy, shifted_energy,
 };
 use clap::ValueEnum;
 use plotters::prelude::*;
@@ -48,6 +48,10 @@ pub struct RunConfig {
     pub sample_every: usize,
     pub seed: u64,
     pub integrator: String,
+    #[serde(default)]
+    pub force: ForceMode,
+    #[serde(default)]
+    pub ramp_to: Option<f64>,
 }
 
 impl RunConfig {
@@ -61,6 +65,32 @@ impl RunConfig {
         sample_every: usize,
         seed: u64,
     ) -> FluidResult<Self> {
+        Self::with_parameters_and_options(
+            n,
+            rho,
+            temperature,
+            dt,
+            eq_steps,
+            steps,
+            sample_every,
+            seed,
+            ForceMode::Cells,
+            None,
+        )
+    }
+
+    pub fn with_parameters_and_options(
+        n: usize,
+        rho: f64,
+        temperature: f64,
+        dt: f64,
+        eq_steps: usize,
+        steps: usize,
+        sample_every: usize,
+        seed: u64,
+        force: ForceMode,
+        ramp_to: Option<f64>,
+    ) -> FluidResult<Self> {
         let (_, box_size) = triangular_lattice(n, rho)?;
         let config = Self {
             n,
@@ -73,6 +103,8 @@ impl RunConfig {
             sample_every,
             seed,
             integrator: IntegratorChoice::VelocityVerlet.as_str().to_owned(),
+            force,
+            ramp_to,
         };
         config.validate()?;
         Ok(config)
@@ -87,6 +119,11 @@ impl RunConfig {
         }
         if self.temperature <= 0.0 || !self.temperature.is_finite() {
             return Err(invalid("temperature must be finite and positive"));
+        }
+        if let Some(ramp_to) = self.ramp_to {
+            if ramp_to <= 0.0 || !ramp_to.is_finite() {
+                return Err(invalid("ramp-to temperature must be finite and positive"));
+            }
         }
         if self.dt <= 0.0 || !self.dt.is_finite() {
             return Err(invalid("dt must be finite and positive"));
@@ -215,7 +252,13 @@ fn initial_fluid_system(config: &RunConfig) -> FluidResult<System> {
         })
         .collect();
 
-    let mut system = System::periodic(positions, velocities, config.box_size, DEFAULT_CUTOFF);
+    let mut system = System::periodic_with_force(
+        positions,
+        velocities,
+        config.box_size,
+        DEFAULT_CUTOFF,
+        config.force,
+    );
     rescale_velocities(&mut system.velocities, config.temperature)?;
     Ok(system)
 }
@@ -268,6 +311,14 @@ pub fn run_simulation(config: &RunConfig, output: &Path) -> FluidResult<()> {
 
     for step in 1..=config.steps {
         advance(&integrator, &mut system, config.dt);
+        if let Some(ramp_to) = config.ramp_to {
+            if step % 50 == 0 || step == config.steps {
+                let fraction = step as f64 / config.steps as f64;
+                let target_temperature =
+                    config.temperature + fraction * (ramp_to - config.temperature);
+                rescale_velocities(&mut system.velocities, target_temperature)?;
+            }
+        }
         if step % config.sample_every == 0 {
             let frame = TrajectoryFrame::from_system(step, config.dt, &system);
             serde_json::to_writer(&mut trajectory_writer, &frame)?;

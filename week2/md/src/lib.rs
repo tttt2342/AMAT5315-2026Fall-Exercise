@@ -1,3 +1,6 @@
+use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
+
 /// Return the greeting printed by the `md` executable.
 pub fn greeting() -> &'static str {
     "Hello, world!"
@@ -12,6 +15,25 @@ pub use fluid::{
 pub type Vec2 = [f64; 2];
 pub const DEFAULT_CUTOFF: f64 = 2.5;
 
+/// Select the periodic force calculation used by a molecular-dynamics run.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, ValueEnum)]
+#[value(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
+pub enum ForceMode {
+    Naive,
+    #[default]
+    Cells,
+}
+
+impl ForceMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Naive => "naive",
+            Self::Cells => "cells",
+        }
+    }
+}
+
 /// The positions, velocities, and cached accelerations of a particle system.
 #[derive(Clone, Debug)]
 pub struct System {
@@ -20,6 +42,7 @@ pub struct System {
     accelerations: Vec<Vec2>,
     box_size: Option<Vec2>,
     cutoff: Option<f64>,
+    force_mode: ForceMode,
 }
 
 impl System {
@@ -38,6 +61,7 @@ impl System {
             accelerations,
             box_size: None,
             cutoff: None,
+            force_mode: ForceMode::Naive,
         }
     }
 
@@ -47,6 +71,17 @@ impl System {
         velocities: Vec<Vec2>,
         box_size: Vec2,
         cutoff: f64,
+    ) -> Self {
+        Self::periodic_with_force(positions, velocities, box_size, cutoff, ForceMode::Cells)
+    }
+
+    /// Build a periodic system with an explicitly selected force calculation.
+    pub fn periodic_with_force(
+        positions: Vec<Vec2>,
+        velocities: Vec<Vec2>,
+        box_size: Vec2,
+        cutoff: f64,
+        force_mode: ForceMode,
     ) -> Self {
         assert_eq!(
             positions.len(),
@@ -64,6 +99,7 @@ impl System {
             accelerations: vec![[0.0; 2]; n_atoms],
             box_size: Some(box_size),
             cutoff: Some(cutoff),
+            force_mode,
         };
         system.wrap_positions();
         system.recompute_accelerations();
@@ -82,9 +118,14 @@ impl System {
     /// Recompute accelerations from the current positions.
     pub fn recompute_accelerations(&mut self) {
         self.accelerations = match (self.box_size, self.cutoff) {
-            (Some(box_size), Some(cutoff)) => {
-                compute_periodic_accelerations(&self.positions, box_size, cutoff)
-            }
+            (Some(box_size), Some(cutoff)) => match self.force_mode {
+                ForceMode::Naive => {
+                    compute_periodic_accelerations(&self.positions, box_size, cutoff)
+                }
+                ForceMode::Cells => {
+                    compute_periodic_cell_accelerations(&self.positions, box_size, cutoff)
+                }
+            },
             (None, None) => compute_accelerations(&self.positions),
             _ => unreachable!("box and cutoff configuration must be set together"),
         };
@@ -96,6 +137,10 @@ impl System {
 
     pub fn cutoff(&self) -> Option<f64> {
         self.cutoff
+    }
+
+    pub fn force_mode(&self) -> ForceMode {
+        self.force_mode
     }
 
     /// Wrap all positions into the periodic box, if this is a periodic system.
@@ -167,6 +212,86 @@ pub fn compute_periodic_accelerations(
     }
 
     accelerations
+}
+
+/// Compute periodic accelerations with a cutoff cell list.
+pub fn compute_periodic_cell_accelerations(
+    positions: &[Vec2],
+    box_size: Vec2,
+    cutoff: f64,
+) -> Vec<Vec2> {
+    let cell_counts = [
+        ((box_size[0] / cutoff).floor() as usize).max(1),
+        ((box_size[1] / cutoff).floor() as usize).max(1),
+    ];
+    let cell_size = [
+        box_size[0] / cell_counts[0] as f64,
+        box_size[1] / cell_counts[1] as f64,
+    ];
+    let mut cells = vec![Vec::new(); cell_counts[0] * cell_counts[1]];
+    let mut atom_cells = Vec::with_capacity(positions.len());
+
+    for (atom, position) in positions.iter().enumerate() {
+        let cell = [
+            periodic_cell_index(position[0], box_size[0], cell_size[0], cell_counts[0]),
+            periodic_cell_index(position[1], box_size[1], cell_size[1], cell_counts[1]),
+        ];
+        let flat = cell[1] * cell_counts[0] + cell[0];
+        cells[flat].push(atom);
+        atom_cells.push(cell);
+    }
+
+    let mut accelerations = vec![[0.0; 2]; positions.len()];
+    for (i, cell) in atom_cells.iter().enumerate() {
+        let mut neighbor_cells = Vec::with_capacity(9);
+        for dx in -1isize..=1 {
+            for dy in -1isize..=1 {
+                let neighbor_x = wrap_cell_index(cell[0] as isize + dx, cell_counts[0]);
+                let neighbor_y = wrap_cell_index(cell[1] as isize + dy, cell_counts[1]);
+                let flat = neighbor_y * cell_counts[0] + neighbor_x;
+                if !neighbor_cells.contains(&flat) {
+                    neighbor_cells.push(flat);
+                }
+            }
+        }
+
+        for flat in neighbor_cells {
+            for &j in &cells[flat] {
+                if j <= i {
+                    continue;
+                }
+                let displacement = minimum_image(
+                    [
+                        positions[i][0] - positions[j][0],
+                        positions[i][1] - positions[j][1],
+                    ],
+                    box_size,
+                );
+                let distance = (displacement[0].powi(2) + displacement[1].powi(2)).sqrt();
+                if distance >= cutoff {
+                    continue;
+                }
+                assert!(distance > 0.0, "atoms must not overlap");
+
+                let scale = force(distance) / distance;
+                let pair_force = [scale * displacement[0], scale * displacement[1]];
+                for component in 0..2 {
+                    accelerations[i][component] += pair_force[component];
+                    accelerations[j][component] -= pair_force[component];
+                }
+            }
+        }
+    }
+
+    accelerations
+}
+
+fn periodic_cell_index(coordinate: f64, box_length: f64, cell_length: f64, count: usize) -> usize {
+    ((coordinate.rem_euclid(box_length) / cell_length).floor() as usize).min(count - 1)
+}
+
+fn wrap_cell_index(index: isize, count: usize) -> usize {
+    index.rem_euclid(count as isize) as usize
 }
 
 /// Apply the minimum-image convention to one two-dimensional displacement.
