@@ -36,3 +36,15 @@ Install the optimized profiling build as the md command:
 
 The profiling profile keeps debug information and does not strip symbols, so
 sampling profilers can resolve Rust function names.
+
+## Timing
+
+Measured with /usr/bin/time -p using the wall-clock real value. Each
+program ran three times sequentially with the default N = 100 contract run.
+The Rust release row uses the optimized profiling build installed as md.
+
+| Program | Median (s) | Range: min–max (s) |
+| --- | ---: | ---: |
+| NumPy week2-sim.py | 3.12 | 3.10–3.19 |
+| Rust debug | 1.90 | 1.89–1.94 |
+| Rust release | 0.13 | 0.12–0.20 |
