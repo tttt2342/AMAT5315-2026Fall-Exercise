@@ -10,8 +10,10 @@ pub fn energy(r: f64) -> f64 {
 }
 
 /// Scalar Lennard-Jones pair force in reduced units.
-pub fn force(_r: f64) -> f64 {
-    todo!("Lennard-Jones force is not implemented yet")
+pub fn force(r: f64) -> f64 {
+    let inverse_r = 1.0 / r;
+    let inverse_r6 = inverse_r.powi(6);
+    24.0 * inverse_r * (2.0 * inverse_r6 * inverse_r6 - inverse_r6)
 }
 
 #[cfg(test)]
