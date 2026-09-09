@@ -140,3 +140,5 @@ Release rather than git, then place its release URL beside the Pages link.
 ## Pages
 
 [Week 2 molecular-dynamics viewer](https://tttt2342.github.io/AMAT5315-2026Fall-Exercise/)
+
+[Final screen recording (GitHub Release)](https://github.com/tttt2342/AMAT5315-2026Fall-Exercise/releases/tag/part5-verification)
