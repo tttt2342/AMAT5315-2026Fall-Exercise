@@ -3,7 +3,14 @@ pub fn greeting() -> &'static str {
     "Hello, world!"
 }
 
+pub mod fluid;
+pub use fluid::{
+    CheckReport, FluidResult, IntegratorChoice, RdfAccumulator, RunConfig, TrajectoryFrame,
+    check_saved_run, default_run_config, render_video, run_simulation,
+};
+
 pub type Vec2 = [f64; 2];
+pub const DEFAULT_CUTOFF: f64 = 2.5;
 
 /// The positions, velocities, and cached accelerations of a particle system.
 #[derive(Clone, Debug)]
@@ -11,6 +18,8 @@ pub struct System {
     pub positions: Vec<Vec2>,
     pub velocities: Vec<Vec2>,
     accelerations: Vec<Vec2>,
+    box_size: Option<Vec2>,
+    cutoff: Option<f64>,
 }
 
 impl System {
@@ -27,7 +36,38 @@ impl System {
             positions,
             velocities,
             accelerations,
+            box_size: None,
+            cutoff: None,
         }
+    }
+
+    /// Build a system in a periodic box with a shifted Lennard-Jones cutoff.
+    pub fn periodic(
+        positions: Vec<Vec2>,
+        velocities: Vec<Vec2>,
+        box_size: Vec2,
+        cutoff: f64,
+    ) -> Self {
+        assert_eq!(
+            positions.len(),
+            velocities.len(),
+            "positions and velocities must have the same length"
+        );
+        assert!(box_size[0] > 0.0 && box_size[1] > 0.0);
+        assert!(cutoff > 0.0 && cutoff < 0.5 * box_size[0]);
+        assert!(cutoff < 0.5 * box_size[1]);
+
+        let n_atoms = positions.len();
+        let mut system = Self {
+            positions,
+            velocities,
+            accelerations: vec![[0.0; 2]; n_atoms],
+            box_size: Some(box_size),
+            cutoff: Some(cutoff),
+        };
+        system.wrap_positions();
+        system.recompute_accelerations();
+        system
     }
 
     pub fn n_atoms(&self) -> usize {
@@ -41,7 +81,31 @@ impl System {
 
     /// Recompute accelerations from the current positions.
     pub fn recompute_accelerations(&mut self) {
-        self.accelerations = compute_accelerations(&self.positions);
+        self.accelerations = match (self.box_size, self.cutoff) {
+            (Some(box_size), Some(cutoff)) => {
+                compute_periodic_accelerations(&self.positions, box_size, cutoff)
+            }
+            (None, None) => compute_accelerations(&self.positions),
+            _ => unreachable!("box and cutoff configuration must be set together"),
+        };
+    }
+
+    pub fn box_size(&self) -> Option<Vec2> {
+        self.box_size
+    }
+
+    pub fn cutoff(&self) -> Option<f64> {
+        self.cutoff
+    }
+
+    /// Wrap all positions into the periodic box, if this is a periodic system.
+    pub fn wrap_positions(&mut self) {
+        if let Some([lx, ly]) = self.box_size {
+            for position in &mut self.positions {
+                position[0] = position[0].rem_euclid(lx);
+                position[1] = position[1].rem_euclid(ly);
+            }
+        }
     }
 }
 
@@ -70,6 +134,58 @@ pub fn compute_accelerations(positions: &[Vec2]) -> Vec<Vec2> {
     accelerations
 }
 
+/// Compute accelerations with minimum-image distances and a force cutoff.
+pub fn compute_periodic_accelerations(
+    positions: &[Vec2],
+    box_size: Vec2,
+    cutoff: f64,
+) -> Vec<Vec2> {
+    let mut accelerations = vec![[0.0; 2]; positions.len()];
+
+    for i in 0..positions.len() {
+        for j in (i + 1)..positions.len() {
+            let displacement = minimum_image(
+                [
+                    positions[i][0] - positions[j][0],
+                    positions[i][1] - positions[j][1],
+                ],
+                box_size,
+            );
+            let distance = (displacement[0].powi(2) + displacement[1].powi(2)).sqrt();
+            if distance >= cutoff {
+                continue;
+            }
+            assert!(distance > 0.0, "atoms must not overlap");
+
+            let scale = force(distance) / distance;
+            let pair_force = [scale * displacement[0], scale * displacement[1]];
+            for component in 0..2 {
+                accelerations[i][component] += pair_force[component];
+                accelerations[j][component] -= pair_force[component];
+            }
+        }
+    }
+
+    accelerations
+}
+
+/// Apply the minimum-image convention to one two-dimensional displacement.
+pub fn minimum_image(displacement: Vec2, box_size: Vec2) -> Vec2 {
+    [
+        displacement[0] - box_size[0] * (displacement[0] / box_size[0]).round(),
+        displacement[1] - box_size[1] * (displacement[1] / box_size[1]).round(),
+    ]
+}
+
+/// Lennard-Jones energy shifted continuously to zero at the cutoff.
+pub fn shifted_energy(r: f64, cutoff: f64) -> f64 {
+    if r < cutoff {
+        energy(r) - energy(cutoff)
+    } else {
+        0.0
+    }
+}
+
 /// Kinetic energy in reduced units.
 pub fn kinetic_energy(system: &System) -> f64 {
     system
@@ -84,11 +200,19 @@ pub fn potential_energy(system: &System) -> f64 {
     let mut potential = 0.0;
     for i in 0..system.n_atoms() {
         for j in (i + 1)..system.n_atoms() {
-            let dx = system.positions[i][0] - system.positions[j][0];
-            let dy = system.positions[i][1] - system.positions[j][1];
-            let distance = (dx.powi(2) + dy.powi(2)).sqrt();
+            let mut displacement = [
+                system.positions[i][0] - system.positions[j][0],
+                system.positions[i][1] - system.positions[j][1],
+            ];
+            if let Some(box_size) = system.box_size {
+                displacement = minimum_image(displacement, box_size);
+            }
+            let distance = (displacement[0].powi(2) + displacement[1].powi(2)).sqrt();
             assert!(distance > 0.0, "atoms must not overlap");
-            potential += energy(distance);
+            potential += match system.cutoff {
+                Some(cutoff) => shifted_energy(distance, cutoff),
+                None => energy(distance),
+            };
         }
     }
     potential
@@ -128,6 +252,7 @@ impl Integrator for Euler {
                 system.velocities[i][component] += dt * acceleration[component];
             }
         }
+        system.wrap_positions();
         system.recompute_accelerations();
     }
 }
@@ -145,6 +270,7 @@ impl Integrator for VelocityVerlet {
             }
         }
 
+        system.wrap_positions();
         system.recompute_accelerations();
 
         for i in 0..system.n_atoms() {

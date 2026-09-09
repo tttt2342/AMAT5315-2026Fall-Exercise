@@ -1,6 +1,6 @@
 use md::{
-    DEFAULT_CUTOFF, RunConfig, check_saved_run, compute_periodic_accelerations,
-    default_run_config, run_simulation, shifted_energy,
+    DEFAULT_CUTOFF, RunConfig, check_saved_run, compute_periodic_accelerations, default_run_config,
+    run_simulation, shifted_energy,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -18,11 +18,9 @@ fn remove_output(path: &PathBuf) {
 fn periodic_pair_forces_sum_to_zero() {
     let positions = vec![[0.1, 1.0], [11.9, 1.0], [6.0, 5.0]];
     let accelerations = compute_periodic_accelerations(&positions, [12.0, 10.0], DEFAULT_CUTOFF);
-    let total = accelerations
-        .iter()
-        .fold([0.0, 0.0], |sum, acceleration| {
-            [sum[0] + acceleration[0], sum[1] + acceleration[1]]
-        });
+    let total = accelerations.iter().fold([0.0, 0.0], |sum, acceleration| {
+        [sum[0] + acceleration[0], sum[1] + acceleration[1]]
+    });
 
     assert!(total[0].abs() < 1e-12, "net x force was {}", total[0]);
     assert!(total[1].abs() < 1e-12, "net y force was {}", total[1]);
@@ -76,7 +74,7 @@ fn cli_run_writes_readable_jsonl_frames() {
         .args([
             "run",
             "--n",
-            "16",
+            "100",
             "--rho",
             "0.8",
             "--temperature",
@@ -102,10 +100,14 @@ fn cli_run_writes_readable_jsonl_frames() {
     assert!(run_json.contains("\"integrator\": \"velocity-verlet\""));
     assert!(run_json.contains("\"box\""));
 
-    let trajectory = fs::read_to_string(output.join("traj.jsonl"))
-        .expect("traj.jsonl should exist");
+    let trajectory =
+        fs::read_to_string(output.join("traj.jsonl")).expect("traj.jsonl should exist");
     assert_eq!(trajectory.lines().count(), 2);
-    assert!(trajectory.lines().all(|line| line.contains("\"E_pot\"") && line.contains("\"E_kin\"")));
+    assert!(
+        trajectory
+            .lines()
+            .all(|line| line.contains("\"E_pot\"") && line.contains("\"E_kin\""))
+    );
 
     remove_output(&output);
 }
