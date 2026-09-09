@@ -1,6 +1,7 @@
 use md::{
-    DEFAULT_CUTOFF, RunConfig, check_saved_run, compute_periodic_accelerations,
-    compute_periodic_cell_accelerations, default_run_config, run_simulation, shifted_energy,
+    DEFAULT_CUTOFF, ForceMode, RunConfig, System, check_saved_run, compute_periodic_accelerations,
+    compute_periodic_cell_accelerations, default_run_config, potential_energy, run_simulation,
+    shifted_energy,
 };
 use serde_json::Value;
 use std::fs;
@@ -55,6 +56,22 @@ fn cell_list_matches_naive_across_boundaries_and_at_cutoff() {
             );
         }
     }
+
+    let naive_system = System::periodic_with_force(
+        positions.clone(),
+        vec![[0.0, 0.0]; positions.len()],
+        box_size,
+        DEFAULT_CUTOFF,
+        ForceMode::Naive,
+    );
+    let cell_system = System::periodic_with_force(
+        positions,
+        vec![[0.0, 0.0]; cells.len()],
+        box_size,
+        DEFAULT_CUTOFF,
+        ForceMode::Cells,
+    );
+    assert!((potential_energy(&naive_system) - potential_energy(&cell_system)).abs() < 1e-12);
 }
 
 #[test]
@@ -156,7 +173,7 @@ fn cli_defaults_to_cells_and_records_ramp_target() {
             "--eq-steps",
             "0",
             "--steps",
-            "50",
+            "100",
             "--sample-every",
             "50",
             "--ramp-to",
@@ -174,6 +191,21 @@ fn cli_defaults_to_cells_and_records_ramp_target() {
     .expect("run.json should be valid JSON");
     assert_eq!(run_json["force"], "cells");
     assert_eq!(run_json["ramp_to"], 1.2);
+
+    let frames: Vec<Value> = fs::read_to_string(output.join("traj.jsonl"))
+        .expect("trajectory should exist")
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("trajectory frame should be valid JSON"))
+        .collect();
+    assert_eq!(frames.len(), 2);
+    for (frame, expected_temperature) in frames.iter().zip([0.85, 1.2]) {
+        let expected_kinetic = expected_temperature * 99.0;
+        let kinetic = frame["E_kin"].as_f64().expect("E_kin should be a number");
+        assert!(
+            (kinetic - expected_kinetic).abs() < 1e-10,
+            "expected kinetic energy {expected_kinetic}, got {kinetic}"
+        );
+    }
 
     remove_output(&output);
 }
