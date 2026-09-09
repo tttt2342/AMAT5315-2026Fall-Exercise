@@ -4,8 +4,9 @@ pub fn greeting() -> &'static str {
 }
 
 /// Lennard-Jones pair energy in reduced units.
-pub fn energy(_r: f64) -> f64 {
-    todo!("Lennard-Jones energy is not implemented yet")
+pub fn energy(r: f64) -> f64 {
+    let inverse_r6 = (1.0 / r).powi(6);
+    4.0 * (inverse_r6 * inverse_r6 - inverse_r6)
 }
 
 /// Scalar Lennard-Jones pair force in reduced units.
