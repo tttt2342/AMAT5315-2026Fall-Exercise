@@ -48,3 +48,20 @@ The Rust release row uses the optimized profiling build installed as md.
 | NumPy week2-sim.py | 3.12 | 3.10–3.19 |
 | Rust debug | 1.90 | 1.89–1.94 |
 | Rust release | 0.13 | 0.12–0.20 |
+
+## Profile
+
+The naive release run was recorded with:
+
+```bash
+samply record md run --n 400 --eq-steps 200 --steps 1000 --out /tmp/md-prof
+```
+
+In the Firefox Profiler Call Tree, `md::compute_periodic_accelerations` accounts
+for 76% of samples (133 of 175). The complete profiled run is shown as 175 ms,
+or 0.175 s.
+
+| Version | Force share (%) | Elapsed time (s) |
+| --- | ---: | ---: |
+| Naive | 76 | 0.175 |
+| Cell list | … | … |
