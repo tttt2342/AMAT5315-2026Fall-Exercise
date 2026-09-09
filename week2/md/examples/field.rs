@@ -7,14 +7,32 @@ use std::path::PathBuf;
 const HALF_WIDTH: f64 = 3.0;
 const GRID_SIZE: usize = 120;
 const CORE_RADIUS: f64 = 0.72;
+const FORCE_DISPLAY_CUTOFF: f64 = 1e-8;
 
 fn equilibrium_distance() -> f64 {
     2.0_f64.powf(1.0 / 6.0)
 }
 
-fn energy_color(value: f64) -> HSLColor {
-    let normalized = ((value.clamp(-1.0, 1.0) + 1.0) / 2.0).clamp(0.0, 1.0);
-    HSLColor(0.66 * (1.0 - normalized), 0.9, 0.52)
+fn interpolate_channel(start: u8, end: u8, amount: f64) -> u8 {
+    (start as f64 + (end as f64 - start as f64) * amount.clamp(0.0, 1.0)).round() as u8
+}
+
+fn energy_color(value: f64) -> RGBColor {
+    let value = value.clamp(-1.0, 1.0);
+    if value < 0.0 {
+        let amount = -value;
+        RGBColor(
+            interpolate_channel(248, 45, amount),
+            interpolate_channel(248, 115, amount),
+            interpolate_channel(248, 220, amount),
+        )
+    } else {
+        RGBColor(
+            interpolate_channel(248, 215, value),
+            interpolate_channel(248, 50, value),
+            interpolate_channel(248, 45, value),
+        )
+    }
 }
 
 fn draw_arrow<DB: DrawingBackend>(
@@ -26,21 +44,25 @@ fn draw_arrow<DB: DrawingBackend>(
 ) -> Result<(), DrawingAreaErrorKind<DB::ErrorType>> {
     let end = (x + dx, y + dy);
     let angle = dy.atan2(dx);
-    let head_length = 0.10;
+    let head_length = 0.14;
+    let head_angle = PI / 5.0;
     let left = (
-        end.0 - head_length * (angle + PI * 0.84).cos(),
-        end.1 - head_length * (angle + PI * 0.84).sin(),
+        end.0 - head_length * (angle + head_angle).cos(),
+        end.1 - head_length * (angle + head_angle).sin(),
     );
     let right = (
-        end.0 - head_length * (angle - PI * 0.84).cos(),
-        end.1 - head_length * (angle - PI * 0.84).sin(),
+        end.0 - head_length * (angle - head_angle).cos(),
+        end.1 - head_length * (angle - head_angle).sin(),
     );
-    let style = ShapeStyle::from(&BLACK.mix(0.72)).stroke_width(1);
+    let arrow_color = RGBColor(20, 32, 55);
 
-    chart.draw_series(std::iter::once(PathElement::new(vec![(x, y), end], style)))?;
     chart.draw_series(std::iter::once(PathElement::new(
-        vec![left, end, right],
-        style,
+        vec![(x, y), end],
+        ShapeStyle::from(&arrow_color).stroke_width(2),
+    )))?;
+    chart.draw_series(std::iter::once(Polygon::new(
+        vec![end, left, right],
+        arrow_color.filled(),
     )))?;
     Ok(())
 }
@@ -97,28 +119,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             let scalar_force = force(r);
-            let arrow_length = 0.34 * (1.0 - (-0.08 * scalar_force.abs()).exp());
+            if scalar_force.abs() < FORCE_DISPLAY_CUTOFF {
+                continue;
+            }
+            let arrow_length = 0.10 + 0.34 * (1.0 - (-0.08 * scalar_force.abs()).exp());
+            let direction = scalar_force.signum();
             draw_arrow(
                 &mut chart,
                 x,
                 y,
-                arrow_length * scalar_force * x / (r * scalar_force.abs()),
-                arrow_length * scalar_force * y / (r * scalar_force.abs()),
+                arrow_length * direction * x / r,
+                arrow_length * direction * y / r,
             )?;
         }
     }
 
     chart.draw_series(std::iter::once(Circle::new((0.0, 0.0), 6, BLACK.filled())))?;
 
-    let circle_points = (0..=128).map(|i| {
-        let theta = 2.0 * PI * i as f64 / 128.0;
-        let r0 = equilibrium_distance();
-        (r0 * theta.cos(), r0 * theta.sin())
-    });
-    chart.draw_series(std::iter::once(PathElement::new(
-        circle_points.collect::<Vec<_>>(),
-        ShapeStyle::from(&BLACK.mix(0.8)).stroke_width(2),
-    )))?;
+    let r0 = equilibrium_distance();
+    for segment in 0..64 {
+        if segment % 2 == 0 {
+            let start = 2.0 * PI * segment as f64 / 64.0;
+            let end = 2.0 * PI * (segment + 1) as f64 / 64.0;
+            chart.draw_series(std::iter::once(PathElement::new(
+                vec![
+                    (r0 * start.cos(), r0 * start.sin()),
+                    (r0 * end.cos(), r0 * end.sin()),
+                ],
+                ShapeStyle::from(&BLACK.mix(0.8)).stroke_width(2),
+            )))?;
+        }
+    }
 
     root.present()?;
     println!("saved {}", output_path.display());
