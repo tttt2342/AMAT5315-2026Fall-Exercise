@@ -27,3 +27,12 @@ cargo run --manifest-path md/Cargo.toml --example dimer
 The example saves the image as `week2/dimer.png`. Its left panel compares
 forward Euler and velocity-Verlet for 500 steps at `dt = 0.01`; its right panel
 shows velocity-Verlet for 5000 steps with the error multiplied by 1000.
+
+## Profiling build
+
+Install the optimized profiling build as the md command:
+
+    cargo install --path md --profile profiling --force --locked
+
+The profiling profile keeps debug information and does not strip symbols, so
+sampling profilers can resolve Rust function names.
