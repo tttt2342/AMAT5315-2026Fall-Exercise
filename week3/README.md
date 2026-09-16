@@ -75,3 +75,12 @@ Draw the size-64, `T=2.3` autocorrelation and block-binning diagnostics with:
 ```
 
 The command writes `evidence/acf-binning.png`.
+
+Draw the integrated autocorrelation time over temperature for both lattice
+sizes with:
+
+```bash
+.venv/bin/python scripts/tau.py
+```
+
+The command writes `evidence/tau.png` with a logarithmic vertical axis.
