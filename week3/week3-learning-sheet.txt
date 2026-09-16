@@ -1,0 +1,995 @@
+--- Page 1 ---
+Week 3: Monte Carlo simulation
+Jin-Guo Liu, Xi-Wei Pan
+Abstract: The two-dimensional Ising model is exactly solved, so any sampler that claims to simulate it can be held to 
+Onsager’s answer. We model the spin system as a Markov chain and derive from detailed balance both the single-flip 
+Metropolis rule and the Wolff cluster rule that flips whole domains at once. From the chain’s samples we measure the 
+magnetization curve, locate the critical temperature on finite lattices with an error bar that accounts for the chain’s 
+memory, and find that cluster flips remove the critical slowing down that defeats single flips at the transition. The 
+evidence is a tested Rust tool, a run anyone can repeat, and a recording of the lattice as it heats. Together they show 
+that a Monte Carlo estimate is only as good as its sampler, its finite-size extrapolation, and its error analysis.
+The final checklist defines done. Every term in a Goal line is defined in the Part that delivers it.
+Resources:
+• Sandvik, Monte Carlo simulations in classical statistical physics, the PY502 lecture notes; each Part names its sections 
+and pages.
+• Susskind, Statistical Mechanics, lecture 9, the Ising model on video: spins, the energy, why the lattice orders, and what 
+a phase transition is. Watch the first hour before the opening section; the mean-field part after it is background.
+The Ising model
+The Ising model is the course’s reference problem, and every Part of this week samples it.  It is the simplest 
+system that has a phase transition: a magnet that holds its magnetization when cold and loses it at a sharp temperature 
+when heated, as iron does at its Curie point. The same lattice, read differently, is a binary alloy ordering or a gas 
+condensing on a lattice. It is the course’s reference problem because it is exactly solved: there is a formula to check every 
+number against, and a check that fails when the physics is wrong is what this course grades.
+Open the Ising lattice lab in your browser. Heat it, cool it, and hover a spin as you read the model below.
+𝑠𝑖 = +1, light
+𝑠𝑖 = −1, dark
+𝐿 = 64, 𝑇 = 2.3 ≈ 𝑇𝑐, this frame’s 𝑀 = −0.502
+periodic: 𝑠𝑖+𝐿 = 𝑠𝑖
+𝐸 = −𝐽 ∑⟨𝑖𝑗⟩ 𝑠𝑖𝑠𝑗
+grey bond: 𝑠𝑖𝑠𝑗 = +1, costs −𝐽
+red bond: 𝑠𝑖𝑠𝑗 = −1, costs +𝐽
+cold, 𝑇 = 1.8
+𝑀 = 0.9604
+hot, 𝑇 = 3.0
+𝑀 = −0.0898
+𝑀 = 1
+𝐿2 ∑𝑖 𝑠𝑖
+Figure 1: The model on a real lattice.  A 64 × 64 configuration from the NumPy baseline at 𝑇 = 2.3, light squares up and dark squares 
+down, its edges glued to the opposite ones. The tile enlarges the framed window as arrows with their bonds: only red bonds, where neighbours 
+disagree, cost energy. Below it, the same lattice cold and hot, with the magnetization of each frame.
+Spins on a torus. Put a spin 𝑠𝑖 ∈ {−1, +1} on each site of an 𝐿 × 𝐿 square lattice: a tiny magnetic moment that points 
+up or down, a light or dark square in Figure 1 and an arrow in its zoom. Periodic boundaries join each edge to the 
+opposite edge, closing the lattice into a torus (a doughnut surface), so every site has exactly four neighbours and no site 
+is at an edge. A configuration 𝑠 is one assignment of all 𝐿2 spins; for 𝐿 = 64 there are 24096 of them.
+1
+
+
+--- Page 2 ---
+Energy. Neighbouring spins prefer to agree. The energy counts their disagreements:
+𝐸(𝑠) = − ∑
+⟨𝑖𝑗⟩
+𝑠𝑖𝑠𝑗, (1)
+where the sum runs over nearest-neighbour pairs. An agreeing pair contributes −1 and a disagreeing pair +1. With 
+𝑁disagree disagreeing bonds, 𝐸 = −2𝐿2 + 2𝑁disagree. The energy per site is −2 when every spin agrees and approaches 
+0 for independent random spins. The coupling in front of the sum is set to 𝐽 = 1, and every temperature in this sheet 
+is measured in units of it.
+Temperature. At temperature 𝑇, statistical mechanics gives configuration 𝑠 the Boltzmann probability
+𝑃 (𝑠) = 𝑒−𝐸(𝑠)/𝑇
+𝑍 , 𝑍 = ∑
+𝑠
+𝑒−𝐸(𝑠)/𝑇 . (2)
+Cold, only nearly aligned lattices carry significant weight. Hot, every configuration is about as likely as any other, so a 
+hot lattice looks like noise. 𝑍 is a sum over all 2𝐿2
+ configurations that no computer evaluates; the methods of this week 
+never need it.
+Magnetization. The magnetization 𝑚 = 1
+𝐿2 ∑𝑖 𝑠𝑖 is the average spin, and measures how far the lattice has agreed on 
+one side. Nothing in Equation 1 prefers up to down, so on a finite lattice the whole lattice flips over now and then, so 
+the average of 𝑚 tends to zero at every temperature. The average of |𝑚| remains positive at finite size, and it is what 
+the ordered phase is measured by. Write that average as ⟨|𝑚|⟩.
+Onsager’s exact solution. Onsager solved this model in 1944 [1]. Below a critical temperature the lattice picks a side, 
+the ordered phase; above it thermal noise wins, the disordered phase. On an infinite lattice,
+𝑇𝑐 = 2
+ln(1 +
+√
+2)
+= 2.26919, ⟨|𝑚|⟩ = (1 − sinh−4(2/𝑇))
+1/8
+for 𝑇 < 𝑇𝑐 , (3)
+and ⟨|𝑚|⟩ = 0 above 𝑇𝑐. On the infinite lattice the sign never flips, so the absolute value changes nothing there; it is a 
+finite-size device. Every measurement in this sheet is checked against this line.  A finite lattice rounds the kink at 𝑇𝑐, 
+and its ⟨|𝑚|⟩ stays a little above zero past 𝑇𝑐; Part 2 measures that drift and removes it.
+Domains and the correlation length. A domain is a connected region of spins that agree. Cold, one domain fills the 
+lattice and only islands dissent. Hot, domains are small and short-lived. At 𝑇𝑐 domains of every size coexist, from single 
+sites to the whole lattice, because the correlation length, the distance over which spins still know about each other, has 
+grown to the size of the lattice. Part 1 records this.
+KEY CONCEPTS
+• A configuration 𝑠 assigns a spin 𝑠𝑖 ∈ {−1, +1} to every site of an 𝐿 × 𝐿 torus.
+• The energy Equation 1 counts disagreeing neighbour pairs, with 𝐽 = 1 as the unit of temperature.
+• The Boltzmann probability Equation 2 weights each configuration by 𝑒−𝐸(𝑠)/𝑇 ; its normalization 𝑍 is never 
+computed.
+• The magnetization 𝑚 is the average spin, and ⟨|𝑚|⟩ is the observable that detects order on a finite lattice.
+• Onsager’s exact 𝑇𝑐 and ⟨|𝑚|⟩ curve Equation 3 separate the ordered phase from the disordered one and check 
+every measurement of the week.
+• A domain is a connected region of agreeing spins; at 𝑇𝑐 the correlation length reaches the lattice size and domains 
+of every size coexist.
+Part 1: Monte Carlo ABC
+Goal: a tested Rust sampler whose cold magnetization agrees with Onsager and whose hot mean |𝑚| is below 0.06, with 
+runs reproducible from one seed and a recording the course viewer plays of domain changes through the transition.
+1 DO
+Part 1 builds ising , a command that samples the model along one temperature ramp and records what it draws. 
+Reuse the AMAT5315-2026Fall-Exercise  repository from weeks 1 and 2, start the agent at its root, send blue panels 
+to the agent, and run grey panels yourself in a second terminal. Runs you make to look at things go under runs/ ; 
+2
+
+
+--- Page 3 ---
+artifacts/  is reserved for the runs the instructor’s gate reads, from Part 2 on. In the second terminal, create the 
+week’s folder and enter it:
+mkdir -p week3 && cd week3
+Create a CLI contract file named ising.design.toml  and copy the green panel below into it. It is the whole contract: 
+one command, its arguments, and what it writes.
+ising.design.toml
+usage       = "ising --update metropolis --l 64 --t-from 1.5 --t-to 3.5 --t-step 0.05 
+--discard 2000 --measure 200 --every 20 --seed 2026 --out runs/ramp"
+description = "sample the Ising model along a temperature ramp; no unstated defaults"
+[args]
+update = """metropolis or wolff; one step is an l*l-proposal sweep or a cluster flip;
+    metropolis picks sites independently and uniformly, with replacement"""
+l      = "integer lattice side, at least 2"
+t-from = "lowest temperature; the ramp ascends from here, from an all-up lattice"
+t-to   = "temperature upper bound; included only if reached by the temperature step"
+t-step = "temperature step; each temperature starts from the previous lattice"
+discard = "equilibration steps discarded at each temperature"
+measure = "measured steps at each temperature"
+seed    = "random seed; one random stream per run, carried through the ramp"
+every   = """record at measured steps every, 2*every, ... at each temperature;
+    0, the default, records none"""
+out = "output folder; may exist; overwrite same-named files written by this run"
+[writes]
+stdout = """a header, then one tab-separated line per temperature:
+    T, mean |M| over the measured steps, then the acceptance rate (metropolis),
+    accepted flips per proposal over discard + measure,
+    or the mean cluster size (wolff)"""
+"<out>/run.json" = """L, update, t_grid, discard, measure, seed, sample_every = 1,
+    time_unit = sweep for metropolis or cluster_flip for wolff"""
+"<out>/series.jsonl" = """one object per measured step: L, T, sweep, M, E; 6 decimals;
+    sweep starts at 1 after discard at each temperature;
+    M is the signed mean spin; E is the energy per site;
+    wolff rows add cluster_size, the spins flipped in that move"""
+"<out>/spins.jsonl" = """frames when every > 0; each object: L, T, sweep, m, spins;
+    sweep counts steps cumulatively across the whole ramp, including discard;
+    spins is a row-major array of l*l integers, +1 for up and -1 for down"""
+The file is the tool: usage  spells one complete run, description  says what the command does, [args]  gives the 
+meaning of every flag, and [writes]  fixes the printed table and the files the course gate reads. There is no nested 
+command table, because ising  has no subcommand. The model is not in the file: it goes in the prompt, which hands 
+the contract to the agent:
+Build `ising` in `week3/`, a Rust CLI sampling the two-dimensional Ising model: L by L 
+spins +1/-1 on a periodic square lattice, J = 1, no field, T in units of J. Implement 
+the command with its `metropolis` update as `week3/ising.design.toml` specifies. 
+Discuss uncertainties with me. Commit.
+The agent will follow the contract to build the tool.
+3
+
+
+--- Page 4 ---
+2 UNDERSTAND
+The model is fixed in the opening section; this Part builds the sampler that draws from it, and records what it draws.
+The Boltzmann average. The quantity to measure is a weighted sum over every configuration,
+⟨|𝑚|⟩ = ∑
+𝑠
+|𝑚(𝑠)|𝑃 (𝑠), (4)
+and for 𝐿 = 64 the sum has 24096 terms. A continuous variable would turn it into an integral over an exponentially 
+large or even infinite space, where a grid of sample points fails for the same reason: the number of grid points grows 
+exponentially with the dimension.
+Importance sampling.  Draw 𝑛 configurations 𝑠(1), …, 𝑠(𝑛) from a sampling distribution  𝑄(𝑠) and average 
+|𝑚(𝑠)|𝑃 (𝑠)/𝑄(𝑠) over them; the ratio 𝑃 /𝑄 is the importance weight of a draw. For independent draws with finite 
+variance, its statistical error falls as 1/√𝑛. The prefactor depends on the observable and on 𝑄.
+The Monte Carlo estimate.  Uniform draws waste almost every sample: at low 𝑇 the weight 𝑃  sits on a vanishing 
+fraction of the 2𝐿2
+ configurations, and a uniform draw almost never lands there ( Figure 2). Sampling the target itself, 
+𝑄 = 𝑃 , removes the importance weights. Every draw then counts equally, and
+⟨|𝑚|⟩ ≈ 1
+𝑛 ∑
+𝑛
+𝑘=1
+|𝑚(𝑠(𝑘))|. (5)
+configuration space 𝑠
+𝑃 (𝑠)
+uniform draws
+configuration space 𝑠
+𝑃 (𝑠)
+draws from 𝑃  itself
+Figure 2: The same peaked target 𝑃 (𝑠) over a one-dimensional cartoon of the configuration space, with thirty draws as ticks under the axis. 
+Uniform draws (left) almost all fall where 𝑃 ≈ 0 and contribute nothing; draws from 𝑃  itself (right) all land under the peak, in red.
+So the key is to design a good sampler: a procedure that draws configurations with probability 𝑃 (𝑠) itself. A Markov 
+chain is such a sampler: a random walk whose next state depends only on the current one. Write 𝑊 (𝑠 → 𝑠′) for the 
+probability of stepping from 𝑠 to 𝑠′. This week builds two chains for the same 𝑃 : single spin flips now, and cluster flips 
+in Part 4.
+Detailed balance and ergodicity. A distribution is stationary when one step of the walk leaves it unchanged: a crowd 
+of walkers spread as 𝑃  is still spread as 𝑃  after everyone moves. Detailed balance is the sufficient condition that makes 
+𝑃  stationary,
+𝑃 (𝑠)𝑊 (𝑠 → 𝑠′) = 𝑃 (𝑠′)𝑊 (𝑠′ → 𝑠), (6)
+the traffic from 𝑠 to 𝑠′ equals the traffic back, so no configuration gains or loses walkers. Ergodicity is the second 
+condition: every configuration must be reachable from every other in a finite number of steps, so the chain cannot get 
+stuck in a corner of the space ( Figure 3) and the stationary distribution is unique. Convergence from any start also 
+requires aperiodicity: the walk must not be locked into a repeating cycle of fixed length. Rejected Metropolis proposals 
+provide self-transitions (a step that keeps the current configuration) at the finite positive temperatures used here. These 
+conditions make the chain converge to 𝑃 , and its states become the samples that Equation 5 needs. Two consequences 
+run through the week: a run must first equilibrate, discarding the steps before the chain has converged, and how fast it 
+converges is a property of the sampler, measured in Part 3 and improved in Part 4.
+𝑠 𝑠′
+𝑊 (𝑠 → 𝑠′) small
+𝑊 (𝑠′ → 𝑠) large
+𝑃 (𝑠) large 𝑃 (𝑠′) small
+detailed balance: equal traffic both ways
+start unreachable: not ergodic
+ergodicity: every state reachable
+Figure 3: The chain in state space. Left: two configurations drawn with area proportional to 𝑃  and arrows with weight proportional to 𝑊 ; 
+the thin arrow out of the likely state and the thick arrow into it carry equal traffic. Right: a connected graph of configurations with one walk 
+of the chain in red; the dashed island no edge reaches is what ergodicity rules out.
+4
+
+
+--- Page 5 ---
+The Metropolis rule. Pick a site uniformly at random and propose flipping its spin. Let Δ𝐸 be the energy change the 
+flip would cause. Accept the flip with probability
+𝐴 = min(1, 𝑒−Δ𝐸/𝑇 ), (7)
+and otherwise keep the old configuration. One sweep is 𝐿2 such proposals, accepted or not, and simulation time is 
+counted in sweeps. Downhill proposals always pass; uphill proposals pass with a temperature-dependent coin flip. 
+Substituting Equation 7 into Equation 6 leaves only the ratio 𝑃 (𝑠′)/𝑃 (𝑠) = 𝑒−Δ𝐸/𝑇 , in which 𝑍 cancels: the sampler 
+never needs 𝑍, only energy differences.
+The energy change of one flip. Flipping 𝑠𝑖 changes only the four terms of Equation 1 that contain site 𝑖.
+𝑠𝑖
+𝑠1
+𝑠2
+𝑠3
+𝑠4
+leaves herere-enters here
+white = +1, dark = −1
+flipping 𝑠𝑖 changes only the four blue bonds
+Figure 4: A 5 × 5 patch of the lattice with the proposed site 𝑠𝑖 in red and its four neighbours 𝑠1, …, 𝑠4 in blue. Only the four blue bonds 
+change energy when 𝑠𝑖 flips. Periodic boundaries join the right edge to the left edge and the top to the bottom.
+Flipping 𝑠𝑖 replaces each of those four bond terms −𝑠𝑖𝑠𝑗 by +𝑠𝑖𝑠𝑗, so
+Δ𝐸 = 2𝑠𝑖(𝑠1 + 𝑠2 + 𝑠3 + 𝑠4). (8)
+Each neighbour sum 𝑠1 + 𝑠2 + 𝑠3 + 𝑠4 is one of −4, −2, 0, 2, 4, so Δ𝐸 takes one of five values. Three give acceptance 
+1, so Equation 7 has only three distinct acceptance probabilities at a fixed finite 𝑇. Computing them once into a five-
+entry table replaces one exponential per proposal with one array lookup.
+Δ𝐸 −8 −4 0 +4 +8
+𝐴 at 𝑇 = 2.3 1 1 1 0.1757 0.0309
+Energy histograms. An energy histogram counts how many recorded configurations lie in each energy interval. For 
+two temperatures 𝑇𝑎 < 𝑇𝑏, the log ratio is ln(𝑃𝑇𝑏
+(𝐸)/𝑃𝑇𝑎
+(𝐸)), the hot histogram divided by the cold one. For two 
+temperatures on the same lattice, the number of states at each energy cancels in their probability ratio. The normal -
+ization contributes only a constant:
+ln(𝑃3.1(𝐸)/𝑃3.0(𝐸)) = (1/3.0 − 1/3.1)𝐸 + const. (9)
+The expected slope is 0.0107527 per energy unit. Use total energy on the horizontal axis. Retain bins containing at 
+least five observations in both histograms. Their points fluctuate because the histograms come from finite, correlated 
+samples. This comparison checks the relative temperature dependence over the shared energy range.
+The ramp recording. The usage line of the contract runs one ramp through the whole transition and records frames 
+of the lattice, because what changes at the transition is the size of the domains, not the number of up spins; the lattice 
+shows it directly. Each temperature starts from the final lattice of the previous one, a warm start, which saves reaching 
+equilibrium from all-up every time. It does not replace equilibration: the run discards 2000 sweeps at every temperature, 
+and a ramp that discards only 200 lags behind as it crosses the critical region and shows an ordered lattice at 𝑇 = 2.3 
+with 𝑚 ≈ 0.78. The ten frames kept per temperature illustrate the transition; they do not establish equilibrium at every 
+temperature, and Part 3 measures how long the chain retains correlations. The frames file is JSON Lines, one frame per 
+line with the keys the contract fixes, and its sweep counter runs across the whole ramp so the viewer’s history reads as 
+one timeline.
+5
+
+
+--- Page 6 ---
+𝑇 = 1.8: ordered 𝑇 = 2.3 ≈ 𝑇𝑐: critical 𝑇 = 3.0: disordered
+Figure 5: Equilibrated 64 × 64 lattices at three temperatures, white for +1 and dark for −1, from the reference run behind every figure in 
+this sheet. Cold: one domain fills the lattice and only islands dissent. Near 𝑇𝑐: domains of every size coexist, from single sites to the whole 
+lattice. Hot: no domain outlives a few sweeps and 𝑚 ≈ 0.
+• Read Sandvik’s notes, section 2.2 “Lattice and spin models”, pages 4–6. Identify the Ising energy and what the sum 
+over nearest neighbours means.
+• Read section 3, “Importance sampling and detailed balance”, pages 7–10, and section 4, “Metropolis algorithm for the 
+Ising model”, pages 10–15. Find what a Markov chain is, what detailed balance and ergodicity require of it, and where 
+detailed balance is used to derive the acceptance probability Equation 7.
+• Skim the Rust Rand Book, “Seeding RNGs”. Explain what a seed does and why a fresh random seed would make this 
+week’s checks impossible.
+• Read Sandvik’s notes, section 5, page 18, Figure 8: three temperatures below, at, and above 𝑇𝑐 on an 𝐿 = 32 lattice. 
+Compare its domain sizes with the ones above.
+KEY CONCEPTS
+• The Monte Carlo estimate Equation 5 averages magnetization over sampled lattices.
+• The Metropolis rule Equation 7 samples Boltzmann weights using the energy change Equation 8.
+• The histogram log ratio Equation 9 tests relative Boltzmann weights through its slope.
+• A seed fixes the random stream so that the same settings reproduce the same measurements.
+• Domains are connected regions of agreeing spins whose sizes change across the transition.
+• A frame records one lattice for comparison with the domain patterns in Figure 5.
+3 VERIFY
+Terminal: inside week3/ , then your browser. You run these yourself: a check outsourced to the thing being checked 
+proves nothing. The tool is run by name: after the agent’s last commit of a Part, cargo install --path .  builds 
+it in release mode, the optimized build, and copies ising  into the folder your shell searches for commands, which 
+rustup  set up, so every check below starts from that line. Deliverables: the printed lines at two temperatures, the 
+Boltzmann chart, and the three stamped viewer frames.
+cargo install --path . --quiet
+(1) The magnetization is right at two temperatures. A ramp of one temperature is a single run from all-up; one 
+frame at the end is enough here.
+ising --update metropolis --l 64 --t-from 1.8 --t-to 1.8 --t-step 0.1 \
+  --discard 2000 --measure 2000 --seed 2026 --out runs/T1.8
+ising --update metropolis --l 64 --t-from 3.0 --t-to 3.0 --t-step 0.1 \
+  --discard 2000 --measure 2000 --seed 2026 --out runs/T3.0
+Each run prints a header and one line: temperature, mean |𝑀 |, acceptance rate. Expected: the first reports a mean 
+|𝑀 | between 0.95 and 0.965, with about 4% of proposals accepted; the answer key prints 0.9568  and 0.0410 , 
+agreeing with Equation 3 to four decimals. The second reports a mean |𝑀 | below 0.06 with about 46% accepted; 
+the answer key prints 0.0414  and 0.4601 . A result outside these windows needs investigation. Check the 
+energy convention, temperature, acceptance rule, and equilibration before assigning a cause.
+6
+
+
+--- Page 7 ---
+(2) The chain samples the Boltzmann distribution. One more run, one temperature step above the hot one:
+ising --update metropolis --l 64 --t-from 3.1 --t-to 3.1 --t-step 0.1 \
+  --discard 2000 --measure 2000 --seed 2026 --out runs/T3.1
+Draw histograms of the total energy, `E` times 4096 per row of `series.jsonl`, for 
+the runs in `week3/runs/T3.0/` and `week3/runs/T3.1/`, with bins 40 units wide. 
+Plot their log ratio, second over first, where both bins hold at least five rows. 
+Overlay slope 1/3.0 - 1/3.1. Save `week3/evidence/boltzmann.png` and keep its 
+drawing command. Commit.
+Open evidence/boltzmann.png  and compare with this reference. Pass: the two histograms overlap, and the 
+log-ratio points increase along the dashed line of slope 0.0107527 per energy unit from Equation 9, each within 
+about 0.5 of it where a bin holds more than 20 sweeps (sparser bins scatter more). A systematic departure calls for 
+more samples and checks of the energy and temperature conventions. Agreement supports the Boltzmann ratio 
+over the overlap; it does not test every configuration probability.
+−3600−3400−3200−3000
+total energy 𝐸
+0
+100
+200
+300
+sweeps in bin
+−3600−3400−3200−3000
+total energy 𝐸
+−3
+−2
+−1
+0
+1
+2
+3
+ln(𝑃3.1/𝑃3.0)
+Energy histograms and their log ratio at 𝐿 = 64 from the answer key’s runs, 2000 
+measured sweeps each. Left: 𝑇 = 3.0 in blue, 𝑇 = 3.1 in red, the hot run about 150 
+units higher in energy. Right: the ratio of the two histograms on a log scale is a 
+straight line of the slope Boltzmann predicts, dashed.
+(3) One seed, one run.
+ising --update metropolis --l 64 --t-from 1.8 --t-to 1.8 --t-step 0.1 \
+  --discard 2000 --measure 2000 --seed 2026 --out runs/a
+ising --update metropolis --l 64 --t-from 1.8 --t-to 1.8 --t-step 0.1 \
+  --discard 2000 --measure 2000 --seed 2026 --out runs/b
+diff runs/a/series.jsonl runs/b/series.jsonl && echo IDENTICAL
+ising --update metropolis --l 64 --t-from 1.8 --t-to 1.8 --t-step 0.1 \
+  --discard 2000 --measure 2000 --seed 2027 --out runs/c
+Expected: both seed-2026 runs succeed and save identical nonempty series; diff  prints differing lines, or 
+nothing when the files match; &&  runs echo IDENTICAL  only when they match. The seed-2027 mean differs in 
+its last digits while staying inside the same window; the answer key gives 0.9574  there. If seed 2027 reproduces 
+seed 2026 exactly, the generator is ignoring its seed. The same seed gives the same line on any machine, because 
+the generator is fixed by the code and not by the hardware, so a classmate can reproduce your number.
+(4) Heating breaks up the ordered domain. The usage line of the contract runs the ramp with frames, a few 
+seconds; commit the recording so the viewer can load its public address.
+ising --update metropolis --l 64 --t-from 1.5 --t-to 3.5 --t-step 0.05 \
+  --discard 2000 --measure 200 --every 20 --seed 2026 --out runs/ramp &&
+test -s runs/ramp/spins.jsonl &&
+cp runs/ramp/spins.jsonl spins.jsonl &&
+git add spins.jsonl && git commit -m "week 3 ramp" && git push
+The recording follows the spins.jsonl  format the contract fixes. On GitHub, open the committed 
+week3/spins.jsonl , select Raw, and copy its address from the browser. Open the course viewer, paste the 
+address into Recording URL, and press Load. The page draws the lattice as one square per spin beside the history 
+7
+
+
+--- Page 8 ---
+of 𝑚 against sweep, with the temperature ramp on a second axis; a local recording can be dropped on the page 
+instead.
+Choose 1.8, 2.3, and 3.0 in Temperature in turn. For each, use Copy link and open that complete link in a private 
+browser window. Pass: the page loads without a login and shows the requested temperature. Compare the domain 
+patterns with the three references: predominantly one colour when cold, large connected regions near the 
+transition, and smaller regions when hot. Either colour may dominate because reversing every spin leaves the 
+energy unchanged.
+Read all ten frames at each temperature. They illustrate fluctuations; a single ordered-looking frame near 𝑇𝑐 does 
+not show failed equilibration. Judge the numerical magnetization from the longer averages in this Part and Part 2, 
+using |𝑚|. Press save PNG for one representative frame at each temperature; it writes the frame with its 
+temperature and magnetization printed on it, the stamp. Save them in week3/evidence/  as 
+viewer-T1.8.png , viewer-T2.3.png , and viewer-T3.0.png .
+𝑇 = 1.8: one domain, island dissenters
+ 𝑇 = 2.3: domains of every size
+ 𝑇 = 3.0: no surviving domain
+Extension: the ramp that runs backwards. Record a descending ramp from 𝑇 = 3.5 to 𝑇 = 1.5 that starts from 
+random spins instead of all-up. Below 𝑇𝑐 it can freeze into a striped state, two domains wrapped around the torus, 
+which single-spin flips cannot dissolve in any reasonable time. Find the lowest temperature at which your descending 
+ramp still agrees with the ascending one, and say what that says about the anneal direction this sheet fixed.
+Part 2: The magnet dies
+Goal: a magnetization curve compared with Onsager’s infinite-lattice result that shows finite-size rounding, and a 
+critical temperature measured from two sizes within 2% of his exact value, with the raw rows that back both.
+1 DO
+Part 1 built the command; this Part runs it four times, on two sizes and two temperature grids, with every value spelled 
+out. Nothing is added to the contract. Install the tool and start the four ramps in the second terminal; together they take 
+about two minutes:
+cargo install --path . --quiet
+ising --update metropolis --l 32 --t-from 1.5 --t-to 3.5 --t-step 0.1 \
+  --discard 2000 --measure 5000 --seed 1042 --out artifacts/coarse-l32
+ising --update metropolis --l 64 --t-from 1.5 --t-to 3.5 --t-step 0.1 \
+  --discard 2000 --measure 5000 --seed 42 --out artifacts/coarse-l64
+ising --update metropolis --l 32 --t-from 2.0 --t-to 2.6 --t-step 0.05 \
+  --discard 2000 --measure 100000 --seed 1042 --out artifacts/window-l32
+ising --update metropolis --l 64 --t-from 2.0 --t-to 2.6 --t-step 0.05 \
+  --discard 2000 --measure 100000 --seed 42 --out artifacts/window-l64
+While they run, ask for the two charts and the critical-temperature estimate, both scripts over the rows the ramps write; 
+artifacts/  and runs/  stay out of git:
+Read the metropolis runs in `week3/artifacts/` and draw two plots using matplotlib. 
+Plot mean |M| against temperature for L = 64 alongside Onsager's infinite-lattice 
+curve. Plot susceptibility (`chi(T) = L^2 (mean(M^2) - mean(|M|)^2) / T`) against 
+temperature for both sizes. Save `week3/evidence/magnetization.png` and `week3/
+evidence/susceptibility.png`. Keep the script that draws them, and run it once the 
+ramps have finished. Discuss uncertainties with me. Commit.
+8
+
+
+--- Page 9 ---
+Write `week3/scripts/peaks.py`, reading the metropolis runs in `week3/artifacts/`. Use 
+the same definition of susceptibility `chi`. Fit a quadratic to the five points around 
+each size's largest `chi`, and take its maximum as `T_peak`. Report `T_c = 2 
+T_peak(64) - T_peak(32)`, and mean |M| at the lowest temperature of each size. Print 
+the values and save them as `week3/evidence/peaks.txt`. Run it once the ramps have 
+finished. Discuss uncertainties with me. Commit.
+2 UNDERSTAND
+This Part measures ⟨|𝑚|⟩ at every temperature and compares the curve with Onsager’s exact result, Equation 3.
+The sweep protocol. One run covers two lattice sizes so that the finite-size effect can be measured rather than assumed. 
+Its temperature grid is finer inside the critical window, the range 2.0 ≤ 𝑇 ≤ 2.6 where the transition happens, and its 
+sampling is longer there, because the chain loses its memory slowly at the transition and Part 3 measures how slowly.
+Given Value
+Sizes 𝐿 = 32 and 𝐿 = 64.
+Temperature grid 1.5 to 3.5 in steps of 0.1, refined to steps of 0.05 between 2.0 and 2.6: 27 
+temperatures.
+Equilibration 2000 sweeps at each temperature, discarded.
+Measurement 5000 sweeps at each temperature; 100000 at the 13 temperatures between 2.0 and 
+2.6. Record after every sweep.
+Seeds 42 for 𝐿 = 64, 1042 for 𝐿 = 32.
+Cost About 7 × 109 proposals: two minutes in a release build, and 160 MB of recorded 
+rows.
+The artifact contract. Two files per run, written into that run’s folder. The instructor’s gate reads every folder under 
+artifacts/ , merges the Metropolis runs, and recomputes the physics itself, so the field names are fixed.
+File Required fields
+run.json L , update  as "metropolis" , t_grid  as the list of temperatures, discard , 
+measure , seed , sample_every  equal to 1 , and time_unit  as "sweep" .
+series.jsonl One JSON object per measurement sweep: L , T , sweep  as the measurement-
+sweep index at that temperature, M  as the signed mean spin, which is 𝑚, and E  as 
+the energy per site. Round M  and E  to 6 decimals.
+Within a folder the rows appear in ramp order, every temperature ascending. 160 MB of them across the four folders 
+must stay out of git.
+Susceptibility and the finite-size shift. The susceptibility measures the size of the magnetization’s fluctuations,
+𝜒(𝑇) = 𝐿2(⟨𝑚2⟩ − ⟨|𝑚|⟩2)
+𝑇 , (10)
+This absolute-magnetization susceptibility uses ⟨|𝑚|⟩2 to remove reversals between the two ordered orientations. The 
+zero-field response susceptibility instead subtracts ⟨𝑚⟩2. Use the former consistently for this sheet’s peak-location 
+comparison. On an infinite lattice that peak would sit exactly at 𝑇𝑐 and be infinitely tall. On a finite lattice the correlation 
+length cannot exceed 𝐿, so the peak is rounded. Its leading shift scales as 1/𝐿. Two sizes can cancel that leading term. 
+They cannot test the scaling assumption or remove higher-order corrections. Fit a parabola through the five grid points 
+centred on the largest 𝜒 and take its vertex as 𝑇peak(𝐿); then
+𝑇𝑐 ≈ 2𝑇peak(64) − 𝑇peak(32) (11)
+cancels the leading 1/𝐿 term, because 𝑇peak(𝐿) ≈ 𝑇𝑐 + 𝑎/𝐿 and 𝐿 = 64 has half the error of 𝐿 = 32.
+The gate’s conditions. The course gate recomputes these from your raw rows:
+9
+
+
+--- Page 10 ---
+Condition Measured quantity Pass condition
+Ordered phase ⟨|𝑚|⟩ at the lowest temperature, each size ≥ 0.9
+Critical temperature |𝑇𝑐 −2.26919|
+2.26919  with 𝑇𝑐 from Equation 11 < 0.02
+• Read Sandvik’s notes, section 4.2, “Evaluating physical observables”, pages 13–15. Find how the susceptibility is 
+computed from the magnetization of the sampled configurations.
+• Read section 7, “Critical phenomena and Finite-size scaling”, pages 27–33. Find why a finite lattice rounds the 
+transition and how the peak position moves with 𝐿.
+The transition is located from the raw rows by a script, not by the sampler; VERIFY asks for it.
+KEY CONCEPTS
+• The sweep measures ⟨|𝑚|⟩ at 27 temperatures and two sizes, finer and longer inside the critical window 2.0 ≤
+𝑇 ≤ 2.6.
+• The artifact contract is two files, the settings and one row per measurement sweep, read by a grader who never 
+sees your code; the raw rows exist because Part 3 re-examines them.
+• The susceptibility Equation 10 peaks where the lattice is most undecided; on a finite lattice the peak sits above 
+𝑇𝑐 by about 1/𝐿.
+• Two sizes cancel that drift through Equation 11, which turns the two peaks into the claim: one critical temper -
+ature within 2% of Onsager’s.
+• The gate recomputes the ordered phase and that critical temperature from your rows.
+3 VERIFY
+Terminal: inside week3/ . Deliverables: the magnetization chart, the susceptibility chart, and the extrapolated critical 
+temperature.
+(1) A finite lattice rounds the magnetization transition. The ramps DO started have finished:
+ls artifacts/*/run.json artifacts/*/series.jsonl
+Each of the four folders holds its run.json , recording the size, seed and grid, and its series.jsonl  in the 
+artifact format above.
+Open evidence/magnetization.png  and compare with this reference.
+Pass: at 𝑇 = 1.5 each size has mean |𝑚| ≥ 0.9. At 𝐿 = 64, 𝑇 = 3.0, the mean is below 0.06. Below the transition 
+the curve approaches the infinite-lattice result. Near 𝑇𝑐, finite-size rounding permits visible departures on either 
+side of the transition. The reference 𝐿 = 64 curve reads about 0.69 at 𝑇 = 2.25, 0.41 at 2.3 and 0.08 at 2.6, and 
+yours should sit within about 0.1 of those.
+1.5 2 2.5 3 3.5
+temperature 𝑇
+0
+0.25
+0.5
+0.75
+1
+⟨|𝑚|⟩ 𝑇𝑐 = 2.2692
+Onsager, infinite lattice
+measured, 𝐿 = 64
+Magnetization against temperature: the contract run at 𝐿 = 64, NumPy 
+reference implementation, against Equation 3. The dashed line is 𝑇𝑐. The 
+finite lattice rounds the transition, so the measured points sit above the exact 
+curve near 𝑇𝑐 and leave a tail above it.
+(2) The susceptibility peaks drift with size. Open evidence/susceptibility.png  and compare with this 
+reference. Pass: both sizes peak between 2.30 and 2.40, the 𝐿 = 64 peak is taller and narrower than the 𝐿 = 32 
+10
+
+
+--- Page 11 ---
+peak, and it sits at a lower temperature. A shared grid maximum can occur when the grid cannot resolve the shift. 
+Compare the fitted peak positions and their uncertainty before interpreting it.
+2 2.25 2.5 2.75
+temperature 𝑇
+0
+20
+40
+60
+80
+𝜒(𝑇)
+𝐿 = 32, peak 2.3358
+𝐿 = 64, peak 2.3125
+Susceptibility against temperature: both sizes from the contract 
+run, NumPy reference implementation, with the dashed line at 𝑇𝑐 and 
+the dotted lines at the two fitted peaks. The peak moves down and 
+grows as 𝐿 doubles.
+(3) The critical temperature lands within 2% of Onsager’s.
+cat evidence/peaks.txt
+Expected: two ordered-phase values above 0.9, the limit 𝑚 → 1 as 𝑇 → 0 that the gate also checks (the answer 
+key prints 0.9866 and 0.9865); two fitted peaks within 0.03 of 2.33 for 𝐿 = 32 and 2.31 for 𝐿 = 64, and a critical 
+temperature within 2% of 2.26919. The answer key prints 
+T_c = 2.2779 (peaks: L32 2.3346, L64 2.3062) , a deviation of +0.38%; the chart above, from the 
+NumPy baseline, fits its peaks at 2.3358 and 2.3125, the same pair to within that width. These are example values 
+from one random stream. Part 3 estimates the uncertainty in your fitted peaks. A discrepancy can arise from 
+sampling, equilibration, the peak fit, or the temperature convention; its size alone does not identify the cause.
+Part 3: How much to trust Part 2
+Goal: correlation plots that explain the uncertainty in magnetization, and a critical-temperature estimate with a 
+sampling error whose sensitivity to block length is reported.
+1 DO
+Nothing is added to the contract: this Part is a study of the rows Part 2 already wrote. Two of its computations take a 
+while, the autocorrelation times over every temperature and a block bootstrap of the peaks; send both now and read on:
+Write `week3/scripts/errors.py`, reading the metropolis runs in `week3/artifacts/`. 
+Print one line per size and temperature: L, T, mean |M|, the naive standard error over 
+the measured steps, the standard error from 50 block averages, their ratio, and the 
+integrated autocorrelation time, summed until the lag exceeds six times the sum. Run 
+it into `week3/evidence/errors.txt`. Discuss uncertainties with me. Commit.
+Block-bootstrap the window runs in `week3/artifacts/` at block lengths 2000, 4000, and 
+8000, 500 replicates each. Draw the susceptibility for both sizes with the five-point 
+parabola fits, shading the envelope of the 500 fitted parabolas. Mark `2.26919`. Save 
+`week3/evidence/chi-bootstrap.png`. Discuss uncertainties with me. Commit.
+2 UNDERSTAND
+The critical temperature of Part 2 came with no error bar. This Part estimates its sampling error from the saved rows. 
+It also checks whether the result depends on how those rows are grouped into blocks.
+The autocorrelation function. One sweep proposes 𝐿2 single flips and accepts a few percent of them near 𝑇 = 1.8, 
+so the lattice after a sweep is mostly the lattice before it. Successive measurements are therefore not independent draws 
+from Equation 2; they are a correlated time series. The autocorrelation function measures how long the chain remembers:
+11
+
+
+--- Page 12 ---
+𝜌(𝑡) = ⟨𝑎𝑘 𝑎𝑘+𝑡⟩ − ⟨𝑎𝑘 ⟩2
+⟨𝑎2
+𝑘 ⟩ − ⟨𝑎𝑘 ⟩2 , (12)
+where 𝑎𝑘 is the measurement after sweep 𝑘, here |𝑚|, and 𝑡 is the lag in sweeps. It starts at 𝜌(0) = 1 and decays.
+The integrated autocorrelation time collects the whole decay into one number:
+𝜏int = 1
+2 + ∑
+𝑡≥1
+𝜌(𝑡). (13)
+The sum is truncated in practice, because at large 𝑡 the estimated 𝜌(𝑡) is noise: the standard cut stops it once the lag 
+exceeds six times the running total, which is the rule this Part’s script uses. With 𝜏int in hand, 𝑛 correlated measurements 
+are worth
+𝑛eff = 𝑛
+2𝜏int
+(14)
+independent ones, and the error bar on their mean is
+𝜎honest = 𝜎naive√2𝜏int, 𝜎naive = 𝑠√𝑛, (15)
+with 𝑠 the standard deviation of the measurements. Quoting 𝜎naive where 𝜏int is large understates the uncertainty by 
+the factor √2𝜏int.
+Binning. Cut the series into blocks of equal length, average each block, and take the standard error of those block 
+means. While the block is shorter than 𝜏int, neighbouring blocks are still correlated and the estimate is too small. Once 
+the block is several times 𝜏int, the block means are effectively independent and the estimate stops growing. That flat 
+region is the plateau, and its height is the honest error bar. A fixed count of fifty blocks does not establish a plateau. 
+At 100000 sweeps, each block has length 2000. The reference estimate 𝜏int = 669.2 makes that only 2.13𝜏int. Compare 
+several longer block lengths and report how many blocks remain. If the estimate still changes or too few blocks remain 
+to locate a plateau, report that the run does not determine a stable error bar.
+Critical slowing down. The decay length of Equation 12 is not a constant of the model; it explodes at the transition 
+and grows with the lattice. Single flips must dissolve the domains of Figure 5 one spin at a time, so the number of sweeps 
+needed grows as 𝐿𝑧, with the dynamic exponent 𝑧 ≈ 2.2 for this update rule. That is why Part 2 spends twenty times 
+more sweeps inside the critical window than outside it. A chart of 𝜏int against 𝑇 needs a logarithmic axis, on which each 
+tick multiplies the value by ten, to show the flat parts and the spike together.
+The block bootstrap.  A block bootstrap creates a new series by drawing consecutive blocks with replacement, so a 
+block may be drawn more than once. It preserves correlations inside each block. Resample each temperature and size 
+separately within the critical window 2.0 ≤ 𝑇 ≤ 2.6. Recompute 𝜒(𝑇), both five-point peak fits, and Equation 11 for 
+every bootstrap replicate. The standard deviation of the replicated critical temperatures estimates its sampling error. 
+Compare lengths 2000, 4000, and 8000 sweeps using 500 replicates each. Report fits whose parabolas do not bend 
+downward, or whose peaks fall outside the five fitted temperatures. These are failed fits; keep their count in the report. 
+Call an error stable when its values at the three block lengths agree within a tenth of their mean; otherwise it is unresolved 
+and is reported as such. Stability across block lengths supports the estimate. This error excludes finite-size corrections 
+and the bias of fitting five grid points: a peak is not a parabola, so a parabola through five points of an asymmetric peak 
+puts its vertex slightly off the true maximum, by an amount more sweeps do not shrink.
+• Read Sandvik’s notes, section 5, “Autocorrelation functions”, pages 15–19. Find the definition of the integrated 
+autocorrelation time and its behaviour at the critical temperature.
+• Read the binning discussion in section 4.2, pages 13–15, and the warning about bin length on page 19. Find the 
+condition a bin must satisfy for the standard deviation of bin averages to be an honest error bar.
+KEY CONCEPTS
+• The autocorrelation function Equation 12 measures persistence between successive measurements.
+• The integrated autocorrelation time Equation 13 sets the error correction √2𝜏int in Equation 15.
+• Binning estimates the mean’s error from block means, with a plateau supporting a stable estimate.
+• Critical slowing down makes 𝜏int peak near the transition and grow with lattice size.
+• The block bootstrap carries sampling uncertainty through the peak fits but excludes finite-size and fitting bias.
+12
+
+
+--- Page 13 ---
+3 VERIFY
+Terminal: inside week3/ . Deliverables: the autocorrelation-and-binning plot, the autocorrelation-time chart, and the 
+critical temperature with its sampling error.
+cargo install --path . --quiet
+(1) Successive sweeps are alike. Look at the raw series before any statistic:
+Draw the absolute magnetization over the first 2000 recorded sweeps at temperatures 
+2.3 and 3.0, for size 64 of the metropolis runs in `week3/artifacts/`. Save it as 
+`week3/evidence/trace.png` and keep the command that draws it. Discuss 
+uncertainties with me. Commit.
+Open evidence/trace.png . Pass: at 𝑇 = 3.0 the trace jitters around 0.04 with much shorter correlations; at 
+𝑇 = 2.3 it drifts in excursions that last hundreds of sweeps and can sit far from the long-run mean of about 0.42 
+for the whole window, as below. The trace illustrates persistence. Count effective samples with Equation 14 rather 
+than by identifying excursions by eye.
+0 500 1000 1500 2000
+measurement sweep
+0
+0.2
+0.4
+0.6
+0.8
+|𝑚|
+𝑇 = 2.3
+𝑇 = 3.0
+Absolute magnetization sweep by sweep at 𝐿 = 64 from the 
+answer key’s window run, the first 2000 measured sweeps. The hot 
+trace is noise around its mean; the critical trace remembers where it 
+was for hundreds of sweeps.
+(2) Correlations enlarge the error much more near the transition. Read the three 𝐿 = 64 rows from the table 
+DO’s first script wrote:
+awk 'NR == 1 || ($1 == 64 && ($2 == 1.5 || $2 == 2.3 || $2 == 3.5))' \
+  evidence/errors.txt
+Expected: a header and three data rows. At 𝑇 = 2.3, the 50-block error is at least 10 times the naive error, and 𝜏int 
+is hundreds of sweeps. At 𝑇 = 1.5 and 3.5, the error ratio is about 2, and 𝜏int is a few sweeps.
+At 𝑇 = 2.3, the answer key gives an error ratio of 31.16 , 𝜏int = 669.22, and a mean of 0.4225 . At 𝑇 = 1.5, it 
+gives an error ratio of 2.16  and 𝜏int = 1.61. At 𝑇 = 3.5, it gives an error ratio of 2.05  and 𝜏int = 2.33. These 
+are examples from one random stream, not exact targets.
+The 50-block estimate is provisional. Each block of the 100000-sweep series contains 2000 sweeps, about three 
+autocorrelation times in the reference run. Equation 15 predicts an error ratio of 
+√
+2 × 669.2 = 36.6, larger than 
+the measured 31.16 . The reference run’s blocks are too short to reach the plateau, so its blocked error is still an 
+underestimate. The next check examines this block-length dependence.
+(3) The honest error is still growing at fifty blocks.
+Draw two panels for size 64 at temperature 2.3 from the metropolis runs in `week3/
+artifacts/`: autocorrelation of |M| against lag, and the standard error of mean |M| 
+against block length. Put block length on a logarithmic axis. Save `week3/evidence/
+acf-binning.png` and keep its command. Discuss uncertainties with me. Commit.
+Open evidence/acf-binning.png . The block-length-one point must equal the naive error in 
+evidence/errors.txt ; longer blocks should expose the effect of correlations. Compare the increase with this 
+13
+
+
+--- Page 14 ---
+reference, drawn from the answer key’s run under the same update rule and protocol. A plateau supports an error 
+estimate. The reference has none: its curve still rises at blocks of 5000 sweeps, where only 20 blocks remain, from 
+0.0006 at length one to 0.021, so the honest error at this temperature is at least 0.021 and unresolved. Expect the 
+same of your run, and record “sampling error unresolved” unless your curve flattens.
+0 1000 2000 3000
+lag 𝑡 (sweeps)
+0
+0.25
+0.5
+0.75
+1
+𝜌(𝑡) of |𝑚| at 𝑇 = 2.3
+1 10 100 1000
+block length (sweeps)
+0
+0.005
+0.01
+0.015
+0.02
+0.025
+0.03
+error bar on ⟨|𝑚|⟩
+Autocorrelation and binning of |𝑚| at 𝐿 = 64, 𝑇 = 2.3, from the answer key’s 
+window run, 𝜏int = 669.2 sweeps. Right: the binning estimate of the error bar on 
+⟨|𝑚|⟩ against block length; the leftmost point is 𝜎naive.
+(4) The autocorrelation time spikes where the physics is.
+Draw the integrated autocorrelation time against temperature for both sizes from 
+the metropolis runs in `week3/artifacts/`. Use a logarithmic vertical axis. Save it 
+as `week3/evidence/tau.png` and keep the command that draws it. Discuss 
+uncertainties with me. Commit.
+Open evidence/tau.png  and compare with this reference. Pass: both curves are flat and of order one sweep 
+away from 𝑇𝑐, rise by more than a factor of a hundred near it, and the 𝐿 = 64 spike is taller than the 𝐿 = 32 
+spike; the answer key peaks at about 670 sweeps for 𝐿 = 64 and 190 for 𝐿 = 32, and yours should peak within a 
+factor of two of those.
+1.5 2 2.5 3 3.5
+temperature 𝑇
+1
+1 × 101
+1 × 102
+1 × 103
+𝜏int (sweeps)
+𝐿 = 32
+𝐿 = 64
+Integrated autocorrelation time against temperature, 
+both sizes, logarithmic axis, computed with Equation 13 from 
+the answer key’s runs. The dashed line is 𝑇𝑐. Away from it, 
+successive sweeps are nearly independent; at it the chain 
+slows, and it slows more on the larger lattice.
+(5) The critical-temperature claim carries a sampling error. Open week3/evidence/chi-bootstrap.png , 
+which DO’s second prompt drew. Pass: each envelope is narrow and sits above the exact temperature. Compare 
+the envelope width across the three block lengths; widths that differ by more than a tenth of their mean make the 
+sampling error unresolved, so report it as unresolved rather than quoting a precision. The central estimate still 
+faces Part 2′s 2% comparison with 2.26919; its sampling error does not include finite-size bias.
+The Rust reference’s window runs give 𝑇𝑐 = 2.2771 with bootstrap standard errors 0.0096, 0.0095 and 0.0092 at 
+the three block lengths, within a tenth of their mean, so its sampling error is resolved at about 0.01. The finite-
+size bias of +0.008 is not inside that bar; the two-size extrapolation, not more sweeps, is what would shrink it.
+Extension: how long is long enough.  From the 𝜏int your run reports at 𝐿 = 64, 𝑇 = 2.3, compute 𝑛eff with 
+Equation 14 for the 100000 recorded sweeps. Then estimate the longer run needed to make the correlation-corrected 
+error as small as today’s naive error, assuming 𝜏int stays fixed. Convert that run length to hours using your measured 
+sweep rate. Report both numbers in week3/README.md .
+14
+
+
+--- Page 15 ---
+Part 4: Beat critical slowing down
+Goal: a cluster sampler with an equilibrium-magnetization comparison that states whether agreement is provisional, 
+a critical temperature within 2% of the exact value, and reduced spin-update work per independent sample near the 
+transition.
+1 DO
+Single flips crawl near the transition, so this Part builds the second update rule. Nothing is added to the contract: 
+--update  already names wolff , and its line already says that one step is then one cluster flip.
+Add the `wolff` value of `--update` to `ising` in `week3/`, as `week3/
+ising.design.toml` specifies. Discuss uncertainties with me. Commit.
+Read the agent’s summary and resolve its open questions. Once it has committed, install and start the window with 
+cluster flips on both sizes, then read on; the reference run took about 95 seconds on an Apple M2 in a release build:
+cargo install --path . --quiet
+ising --update wolff --l 64 --t-from 2.0 --t-to 2.6 --t-step 0.05 \
+  --discard 20000 --measure 100000 --seed 42 --out artifacts/wolff-l64
+ising --update wolff --l 32 --t-from 2.0 --t-to 2.6 --t-step 0.05 \
+  --discard 20000 --measure 100000 --seed 1042 --out artifacts/wolff-l32
+2 UNDERSTAND
+Near 𝑇𝑐 single flips need of order 𝐿𝑧 sweeps per independent configuration, so running longer loses the race against a 
+larger lattice. The fix is to change the update rule.
+The Wolff cluster update [2] flips many spins at once. Pick a site at random. Grow a cluster outward from it: for each 
+neighbour that has the same spin as the site it was reached from, add it to the cluster with probability
+𝑝 = 1 − 𝑒−2/𝑇 , (16)
+and never add a neighbour of opposite spin. Repeat for the neighbours of every newly added site until no site is added. 
+Then flip the whole cluster. There is no acceptance test: the flip always happens. Bonds inside the cluster and outside 
+it keep their energy; only the declined bonds at its boundary change, and Equation 16 is exactly the probability that 
+makes acceptance 1 satisfy Equation 6.
+The observation interval.  One cluster move grows and flips one cluster. Record after every move. A cluster’s size 
+depends on the configuration; stopping only when accumulated sizes reach 𝐿2 changes the observed distribution. The 
+observation interval must not depend on the sizes just seen. Keeping every move also preserves the correlations needed 
+for error estimates.
+Spin-update work.  Let 𝑐 be the number of spins flipped in one move, and ⟨𝑐⟩ its measured mean. Express the 
+autocorrelation time in spin-update work units, one unit for 𝐿2 flipped spins:
+𝜏work = 𝜏moves
+⟨𝑐⟩
+𝐿2 . (17)
+For Metropolis, one unit is 𝐿2 proposed spin flips, including rejections. The conversion compares spin-update counts. 
+It does not measure elapsed-time speedup, since cluster growth and a single-spin proposal have different costs.
+The window protocol. The cluster run covers the same 13 critical-window temperatures and both sizes from Part 2. 
+Its observation unit is a cluster move.
+Given Value
+Sizes and seeds 𝐿 = 32: 1042; 𝐿 = 64: 42.
+Temperature grid 2.0 to 2.6 in steps of 0.05, ascending.
+Initial state All-up at the first temperature; reuse the previous final lattice thereafter.
+Equilibration Discard 20000 cluster moves at each temperature.
+Measurements Record every one of the next 100000 cluster moves, including its size.
+15
+
+
+--- Page 16 ---
+Output artifacts/wolff-l64/  and artifacts/wolff-l32/ ; each series.jsonl  
+has one object per cluster move with L , T , sweep , M , E , and 
+cluster_size . Keep the raw rows out of git.
+Sampler agreement. Both update rules target the same Boltzmann probabilities, so compare ⟨|𝑚|⟩ at the same 𝐿, 𝑇 
+using their sampling errors. For independent runs with standard errors 𝜎1, 𝜎2, use
+𝑑 = ||(𝑚)1 − |(𝑚)2|
+√𝜎2
+1 + 𝜎2
+2
+. (18)
+Here |(𝑚) denotes the measured mean of |𝑚|. A difference beyond three combined standard errors calls for more data 
+and an investigation of equilibration and sampling. A small difference supports this observable; it does not establish 
+the full distribution. Part 3′s block-length check still applies to each error. A block-length-sensitive error makes the 
+agreement comparison provisional.
+• Read Sandvik’s notes, section 6, “Cluster algorithms for the Ising model”, pages 19–27, and in particular section 6.4, 
+“Wolff algorithm”, pages 26–27. Find why flipping the cluster with acceptance 1 satisfies detailed balance, and compare 
+the single-cluster rule with the Swendsen-Wang rule that precedes it.
+• Skim Wolff’s four-page original [2]. Find the bond probability and the claim about the dynamic exponent, the 𝑧 of 𝐿𝑧.
+KEY CONCEPTS
+• The Wolff cluster update grows aligned clusters with probability Equation 16 and flips them with acceptance 1.
+• A fixed interval of one cluster move preserves the sampled distribution.
+• Sampler agreement uses Equation 18 and is provisional when sampling errors remain unstable.
+• The critical temperature’s sampling error excludes finite-size and peak-fitting bias.
+• Spin-update work converts 𝜏moves with Equation 17 after sampling.
+3 VERIFY
+Terminal: inside week3/ . Deliverables: the equilibrium-magnetization comparison, the cluster critical-temperature 
+estimate, and week3/evidence/tau-compare.png .
+(1) Sampler agreement depends on stable sampling errors.
+Draw mean |M| against temperature for size 64 from the metropolis window run and 
+the wolff run in `week3/artifacts/`, with block-bootstrap error bars. Add a second 
+panel of the cluster susceptibility with its five-point fitted peaks and the 
+extrapolated critical temperature. Mark `2.26919`. Save `week3/evidence/
+magnetization-compare.png`. Discuss uncertainties with me. Commit.
+Open week3/evidence/magnetization-compare.png . At 𝐿 = 64, 𝑇 = 2.3, the Rust reference gives ⟨|𝑚|⟩ =
+0.4310 for the cluster chain and 0.4215 for single flips, a difference of 0.45 combined standard errors using the 
+provisional errors. Compare your runs with Equation 18 and inspect both error bars across block lengths. Report 
+agreement when both errors are stable in Part 3′s sense, within a tenth of their mean across the three block 
+lengths, and the comparison is at most 3. If either error remains sensitive to block length, report “agreement 
+provisional”, as for the reference runs here. Report a value above 3 as a discrepancy needing investigation.
+(2) The cluster critical temperature has a small sampling error and a remaining bias. Read the fitted peaks 
+and the extrapolated temperature in the right panel of week3/evidence/magnetization-compare.png . The 
+Rust reference peaks are 2.3492 and 2.3117, giving 𝑇𝑐 = 2.2741, within 0.22% of 2.26919. Your central estimate 
+must satisfy the same 2% comparison as Part 2. The Rust reference’s block bootstrap gives a sampling error of 
+0.0007 at each of the block lengths 2000, 4000, and 8000 cluster moves, thirteen times smaller than the single-flip 
+bar and small against the 0.0049 distance from the exact value. Explain why more independent samples reduce 
+sampling error while the two-size extrapolation and five-point fit can retain a systematic bias.
+(3) Cluster updates reduce the work per independent sample.
+16
+
+
+--- Page 17 ---
+Write `week3/scripts/compare.py`: draw work-normalized autocorrelation time against 
+temperature for size 64 from the metropolis window run and the wolff run in `week3/
+artifacts/`. One cluster move costs `mean cluster size / L^2` sweeps of spin 
+updates. Save `week3/evidence/tau-compare.png`. Run it. Discuss uncertainties with 
+me. Commit.
+Open week3/evidence/tau-compare.png . Use Equation 17 for the cluster curve and sweeps for Metropolis. 
+Near 𝑇 = 2.3, the cluster value should be smaller by a factor in the hundreds. The Rust reference records 𝜏moves =
+4.736 and ⟨𝑐⟩ = 921.6, giving 𝜏work = 1.066. Against the single-flip value 701.8 of the same window run, this is 
+about 660 times less spin-update work per independent |𝑚| sample. Report your measured ratio; do not require it 
+to equal this reference value.
+2 2.1 2.2 2.3 2.4 2.5 2.6
+temperature 𝑇
+1 × 10−1
+1
+1 × 101
+1 × 102
+1 × 103
+𝜏work, 𝐿 = 64 Metropolis
+Wolff, one move per row
+Work-normalized autocorrelation times. Both series use the 
+Rust reference implementations. The cluster series records each 
+move and converts time afterward.
+What the sampler omits. The sampler you built covers one model with one order parameter and two update rules. 
+It omits histogram reweighting, Binder cumulants, parallel tempering, and the checkerboard decompositions that put 
+single-flip updates on a GPU. Serious work uses packages such as ALPS [3], with Newman and Barkema [4] and Landau 
+and Binder [5] as the textbooks. Build it once anyway: the sampler, the sampling- error estimator and the two-size 
+extrapolation are what those packages hide; this week you build all three, with the systematic bias stated but not 
+measured.
+Wrap up the work
+Goal: a README anyone can follow to regenerate the week’s evidence.
+The committed tree contains the code, recording, and visual evidence:
+week3/
+  Cargo.toml, Cargo.lock, ising.design.toml, README.md
+  src/, tests/
+  scripts/                          ← peaks.py, errors.py, compare.py, and the plot 
+scripts
+  spins.jsonl
+  evidence/
+    boltzmann.png, magnetization.png, susceptibility.png
+    trace.png, acf-binning.png, tau.png
+    chi-bootstrap.png, magnetization-compare.png, tau-compare.png
+    viewer-T1.8.png, viewer-T2.3.png, viewer-T3.0.png
+Keep week3/evidence/  and the viewer recording tracked; artifacts/  stays in the local clone. Keep each committed 
+file below 5 MB.
+Your week3/ising.design.toml  is the contract Part 1 gave you. The reference copy ships with the week: download 
+week3-ising.design.toml . Download it and compare it with yours; the two files must match section for section.
+At the exercise repository root, send:
+17
+
+
+--- Page 18 ---
+Write `week3/README.md` as a guide to regenerate every committed file from a clean 
+clone: the install command, every `ising` run with its values, then each script with 
+the file it writes, in order. List every file in `week3/evidence/` beside the command 
+that produces it. Discuss uncertainties with me. Commit.
+Follow the README yourself, from the top, in the second terminal; every command must run as written and every 
+listed file must appear. Then commit and push:
+git add -A &&
+git commit -m "week 3 evidence" &&
+git push
+Show the instructor the committed evidence and explain the limits of your critical-temperature estimate at the next 
+session. Nothing is submitted.
+Challenge: beat Wolff at the critical point
+Neural samplers. The update you built in Part 4 is the state of the art of 1989. Since 2019 a line of work has replaced 
+the chain’s proposal with a neural network that draws a whole lattice at once, instead of one spin or one cluster. Four 
+families are in use. An autoregressive network writes the spins one after another, each conditioned on the ones already 
+written. A normalizing flow maps easy random numbers through an invertible network into a lattice. A transformer is 
+a network whose layers let every site attend to every other. A diffusion model starts from noise and removes it in steps. 
+None of these is exact on its own, so the samples are corrected in one of two ways. The first keeps a Markov chain 
+and applies the acceptance test of Equation 7 to the proposed lattice, which gives a Metropolis-corrected neural chain. 
+The second keeps every sample and weights it by the ratio of the Boltzmann probability to the probability the network 
+assigned it, which is neural importance sampling; its figure of merit is the effective sample size, the fraction of drawn 
+samples that count as independent. The promise of both is a proposal whose cost does not grow at 𝑇𝑐, and the free 
+energy as a by-product, which no Monte Carlo chain gives you.
+The published record on the two-dimensional Ising model at 𝑇𝑐, checked on 2026-09-06, is short. The largest 
+Metropolis-corrected neural chain is 𝐿 = 128, and it reports only a relative autocorrelation statement [6]. The largest 
+importance-sampled run is 𝐿 = 180, with an effective sample size of 0.59 after 192 hours of training, no Metropolis 
+step, and the authors’ own verdict that neural samplers are not competitive with cluster algorithms [7]. No paper has 
+fitted a dynamic exponent for a neural chain; an absolute 𝜏int exists only at 𝐿 = 16 [8]. No paper has counted training 
+plus sampling cost against Wolff in two dimensions at any size, and the one such count, in three dimensions at 𝐿 =
+8, came out about 70 × in Wolff’s favour [9]. Critical slowing down does not disappear in these methods. It moves 
+into training, where the learning time of a one-layer score network grows as 𝐿2 at criticality [10], and the importance 
+weights can look healthy while whole modes of the distribution are missing [11].
+The benchmark. Temperature is written here as the inverse temperature 𝛽 = 1/𝑇, the convention of this literature, so 
+Onsager’s point is 𝛽𝑐 = ln(1 +
+√
+2)/2.
+Row Requirement Never reached because
+Size 𝐿 = 256 at 𝛽𝑐, on the grid and conventions of Part 2. The largest corrected chain is 128; the 
+largest reweighted run is 180.
+Exactness A Metropolis-corrected chain with acceptance ≥ 0.5 
+at 𝐿 = 256; free energy within 10−5 relative of the 
+exact finite-lattice value [12]; the energy histogram 
+passes a 𝜒2 test against the exact finite-lattice energy 
+distribution [13].
+The histogram test has never been 
+applied to a neural sampler at this size, 
+and reweighting-only results carry no 
+acceptance.
+Dynamics 𝜏int of |𝑚|, 𝐸 and 𝜒 at 𝐿 = 32, 64, 128, 256, with 
+error bars from the independence-sampler estimators 
+[8], and a fitted exponent 𝑧′ with an error.
+No 𝑧′ exists.
+18
+
+
+--- Page 19 ---
+Cost Total cost per independent sample at 𝐿 = 256, 
+training amortized over the run, at or below Wolff’s 
+on the same hardware, reported in wall-clock and in 
+floating-point operations.
+Never counted in two dimensions; 
+70 × the wrong way in three 
+dimensions at 𝐿 = 8.
+Reproducibility Seeds, the usage lines, released code, and a check 
+that fails: a deliberately mode-collapsed model must 
+fail the histogram test.
+No published neural-sampler result 
+ships a check with teeth.
+Where to start. The tool of this week is the reference implementation. Wolff gives the ground-truth chain at any 𝐿 in 
+minutes, so every neural number has something to be measured against. scripts/errors.py  already holds the 𝜏int 
+estimators and grows the independence-sampler ones. Two more printed comparisons join: the exact finite-lattice free 
+energy and the histogram test. The artifact contract stays as it is, so the instructor’s gate keeps working on the new 
+sampler. Public code to build on: the hierarchical autoregressive networks [6], the multilevel sampler [14], the neural 
+cluster updates [15], and the exact planar-Ising sampler [16] as a second ground truth. Read [17] for the estimators and 
+[18] for why training is the cost.
+What counts. Clearing every row of the table is the bar nobody has reached. Clearing Dynamics and Reproducibility 
+with the cost curve, even when Wolff wins, is a new result, and a scaling study that stops below 𝐿 = 256 with a stated 
+reason is a valid negative outcome.
+[1] L. Onsager, “Crystal Statistics. I. A Two-Dimensional Model with an Order-Disorder Transition, ” Physical Review, vol. 65, pp. 117–149, 1944, doi: 10.1103/
+PhysRev.65.117.
+[2] U. Wolff, “Collective Monte Carlo Updating for Spin Systems, ” Physical Review Letters, vol. 62, pp. 361–364, 1989, doi: 10.1103/PhysRevLett.62.361.
+[3] B. Bauer et al., “The ALPS Project Release 2.0: Open Source Software for Strongly Correlated Systems, ” Journal of Statistical Mechanics: Theory and 
+Experiment, vol. 2011, p. P5001, 2011, doi: 10.1088/1742-5468/2011/05/P05001.
+[4] M. E. J. Newman and G. T. Barkema, Monte Carlo Methods in Statistical Physics. Oxford University Press, 1999.
+[5] D. P. Landau and K. Binder, A Guide to Monte Carlo Simulations in Statistical Physics, 5th ed. Cambridge University Press, 2021. doi: 10.1017/9781108780346.
+[6] P. Białas, P. Korcyl, and T. Stebel, “Hierarchical Autoregressive Neural Networks for Statistical Systems, ” Computer Physics Communications, vol. 281, p. 
+108502, 2022, doi: 10.1016/j.cpc.2022.108502.
+[7] P. Białas, P. Korcyl, T. Stebel, A. Stefański, and D. Zapolski, “Sampling Two-Dimensional Spin Systems with Transformers. ” [Online]. Available: https://
+arxiv.org/abs/2604.27738
+[8] P. Białas, P. Korcyl, and T. Stebel, “Analysis of Autocorrelation Times in Neural Markov Chain Monte Carlo Simulations, ” Physical Review E, vol. 107, p. 
+15303, 2023, doi: 10.1103/PhysRevE.107.015303.
+[9] P. Białas, V. Chahar, P. Korcyl, T. Stebel, M. Winiarski, and D. Zapolski, “Hierarchical Autoregressive Neural Networks in Three-Dimensional Statistical 
+System, ” Computer Physics Communications, vol. 318, p. 109892, 2025, doi: 10.1016/j.cpc.2025.109892.
+[10] L. M. Del Bono, G. Biroli, P. Charbonneau, and M. Gabrié, “The Critical Slowing Down in Diffusion Models. ” [Online]. Available: https://arxiv.org/abs/
+2605.12597
+[11] K. A. Nicoli, C. J. Anders, T. Hartung, K. Jansen, P. Kessel, and S. Nakajima, “Detecting and Mitigating Mode-Collapse for Flow-Based Sampling of Lattice 
+Field Theories, ” Physical Review D, vol. 108, p. 114501, 2023.
+[12] A. E. Ferdinand and M. E. Fisher, “Bounded and Inhomogeneous Ising Models. I. Specific-Heat Anomaly of a Finite Lattice, ” Physical Review, vol. 185, pp. 
+832–846, 1969, doi: 10.1103/PhysRev.185.832.
+[13] P. D. Beale, “Exact Distribution of Energies in the Two-Dimensional Ising Model, ” Physical Review Letters , vol. 76, pp. 78–81, 1996, doi: 10.1103/
+PhysRevLett.76.78.
+[14] A. Singha, E. Cellini, K. A. Nicoli, K. Jansen, S. Kühn, and S. Nakajima, “Multilevel Generative Samplers for Investigating Critical Phenomena, ” in 
+International Conference on Learning Representations (ICLR),  2025. [Online].  Available: https://arxiv.org/abs/2503.08918
+[15] D. Wu, R. Rossi, and G. Carleo, “Unbiased Monte Carlo Cluster Updates with Autoregressive Neural Networks, ” Physical Review Research, vol. 3, p. L42024, 
+2021, doi: 10.1103/PhysRevResearch.3.L042024.
+[16] J. Liu, T. Chen, T. Che, L. Wang, Y. Deng, and P. Zhang, “Exact Autoregressive Sampling of Planar Ising Spin Glasses via the Kac–Ward Theory. ” [Online]. 
+Available: https://arxiv.org/abs/2608.24382
+[17] K. A. Nicoli, S. Nakajima, N. Strodthoff, W. Samek, K.-R. Müller, and P. Kessel, “Asymptotically Unbiased Estimation of Physical Observables with Neural 
+Samplers, ” Physical Review E, vol. 101, p. 23304, 2020, doi: 10.1103/PhysRevE.101.023304.
+[18] L. Del Debbio, J. Marsh Rossney, and M. Wilson, “Efficient Modelling of Trivializing Maps for Lattice 𝜑4 Theory Using Normalizing Flows: A First Look 
+at Scalability”, Physical Review D, vol. 104, p. 94507, 2021, doi: 10.1103/PhysRevD.104.094507.
+19
