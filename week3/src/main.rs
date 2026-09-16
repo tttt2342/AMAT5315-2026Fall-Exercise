@@ -3,15 +3,38 @@ use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
 use clap::{Parser, ValueEnum};
-use ising::{temperature_grid, Lattice};
+use ising::{temperature_grid, Lattice, WolffWorkspace};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use serde::Serialize;
 
-#[derive(Clone, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum)]
 enum Update {
     Metropolis,
     Wolff,
+}
+
+impl Update {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Metropolis => "metropolis",
+            Self::Wolff => "wolff",
+        }
+    }
+
+    fn time_unit(self) -> &'static str {
+        match self {
+            Self::Metropolis => "sweep",
+            Self::Wolff => "cluster_flip",
+        }
+    }
+
+    fn metric_header(self) -> &'static str {
+        match self {
+            Self::Metropolis => "acceptance_rate",
+            Self::Wolff => "mean_cluster_size",
+        }
+    }
 }
 
 #[derive(Debug, Parser)]
@@ -20,7 +43,7 @@ enum Update {
     about = "Sample the Ising model along a temperature ramp; no unstated defaults"
 )]
 struct Args {
-    /// Update rule (this version implements metropolis)
+    /// Update rule: metropolis sweeps or Wolff cluster flips
     #[arg(long, value_enum)]
     update: Update,
 
@@ -40,15 +63,15 @@ struct Args {
     #[arg(long)]
     t_step: f64,
 
-    /// Equilibration sweeps discarded at each temperature
+    /// Equilibration steps discarded at each temperature
     #[arg(long)]
     discard: u64,
 
-    /// Measured sweeps at each temperature
+    /// Measured steps at each temperature
     #[arg(long)]
     measure: u64,
 
-    /// Record a spin frame every N measured sweeps; zero records none
+    /// Record a spin frame every N measured steps; zero records none
     #[arg(long, default_value_t = 0)]
     every: u64,
 
@@ -75,9 +98,6 @@ struct RunMetadata<'a> {
 }
 
 fn validate(args: &Args) -> Result<(), String> {
-    if !matches!(args.update, Update::Metropolis) {
-        return Err("update 'wolff' is not implemented in this assignment part".into());
-    }
     if args.l < 2 {
         return Err("--l must be at least 2".into());
     }
@@ -99,6 +119,19 @@ fn validate(args: &Args) -> Result<(), String> {
     Ok(())
 }
 
+fn update_step(
+    update: Update,
+    lattice: &mut Lattice,
+    temperature: f64,
+    rng: &mut ChaCha8Rng,
+    wolff_workspace: &mut WolffWorkspace,
+) -> u64 {
+    match update {
+        Update::Metropolis => lattice.metropolis_sweep(temperature, rng),
+        Update::Wolff => lattice.wolff_cluster_flip(temperature, rng, wolff_workspace),
+    }
+}
+
 fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     validate(&args)
         .map_err(|message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message))?;
@@ -108,13 +141,13 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
 
     let metadata = RunMetadata {
         side: args.l,
-        update: "metropolis",
+        update: args.update.name(),
         t_grid: &temperatures,
         discard: args.discard,
         measure: args.measure,
         seed: args.seed,
         sample_every: 1,
-        time_unit: "sweep",
+        time_unit: args.update.time_unit(),
     };
     let run_file = File::create(args.out.join("run.json"))?;
     serde_json::to_writer_pretty(BufWriter::new(run_file), &metadata)?;
@@ -123,31 +156,52 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     // Always create/truncate the contract file; it remains empty when --every=0.
     let mut frames = BufWriter::new(File::create(args.out.join("spins.jsonl"))?);
     let mut lattice = Lattice::all_up(args.l);
+    let mut wolff_workspace = WolffWorkspace::new(args.l * args.l);
     let mut rng = ChaCha8Rng::seed_from_u64(args.seed);
     let proposals_per_sweep = (args.l * args.l) as u64;
     let mut global_sweep = 0_u64;
 
-    println!("T\tmean_abs_M\tacceptance_rate");
+    println!("T\tmean_abs_M\t{}", args.update.metric_header());
     for &temperature in &temperatures {
-        let mut accepted = 0_u64;
+        let mut update_total = 0_u64;
         for _ in 0..args.discard {
-            accepted += lattice.metropolis_sweep(temperature, &mut rng);
+            update_total += update_step(
+                args.update,
+                &mut lattice,
+                temperature,
+                &mut rng,
+                &mut wolff_workspace,
+            );
             global_sweep += 1;
         }
 
         let mut absolute_magnetization_sum = 0.0;
         for measured_sweep in 1..=args.measure {
-            accepted += lattice.metropolis_sweep(temperature, &mut rng);
+            let step_value = update_step(
+                args.update,
+                &mut lattice,
+                temperature,
+                &mut rng,
+                &mut wolff_workspace,
+            );
+            update_total += step_value;
             global_sweep += 1;
 
             let magnetization = lattice.mean_spin();
             let energy = lattice.energy_per_site();
             absolute_magnetization_sum += magnetization.abs();
-            writeln!(
-                series,
-                "{{\"L\":{},\"T\":{:.6},\"sweep\":{},\"M\":{:.6},\"E\":{:.6}}}",
-                args.l, temperature, measured_sweep, magnetization, energy
-            )?;
+            match args.update {
+                Update::Metropolis => writeln!(
+                    series,
+                    "{{\"L\":{},\"T\":{:.6},\"sweep\":{},\"M\":{:.6},\"E\":{:.6}}}",
+                    args.l, temperature, measured_sweep, magnetization, energy
+                )?,
+                Update::Wolff => writeln!(
+                    series,
+                    "{{\"L\":{},\"T\":{:.6},\"sweep\":{},\"M\":{:.6},\"E\":{:.6},\"cluster_size\":{}}}",
+                    args.l, temperature, measured_sweep, magnetization, energy, step_value
+                )?,
+            }
 
             if args.every > 0 && measured_sweep % args.every == 0 {
                 write!(
@@ -166,9 +220,12 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         }
 
         let mean_absolute_magnetization = absolute_magnetization_sum / args.measure as f64;
-        let sweeps = args.discard + args.measure;
-        let acceptance_rate = accepted as f64 / (sweeps * proposals_per_sweep) as f64;
-        println!("{temperature:.6}\t{mean_absolute_magnetization:.6}\t{acceptance_rate:.6}");
+        let steps = args.discard + args.measure;
+        let update_metric = match args.update {
+            Update::Metropolis => update_total as f64 / (steps * proposals_per_sweep) as f64,
+            Update::Wolff => update_total as f64 / steps as f64,
+        };
+        println!("{temperature:.6}\t{mean_absolute_magnetization:.6}\t{update_metric:.6}");
     }
 
     Ok(())
