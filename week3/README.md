@@ -48,3 +48,13 @@ Metropolis temperature with:
 The integrated autocorrelation time uses the running-window rule
 `lag > 6 * tau_int`, with `tau_int = 1/2 + sum(rho(lag))`. The reported ratio
 is `block50_se / naive_se`.
+
+Run the block bootstrap of the susceptibility peaks and draw its three block-
+length envelopes with:
+
+```bash
+.venv/bin/python scripts/chi_bootstrap.py
+```
+
+The command uses 500 replicates and seed 2026, then writes
+`evidence/chi-bootstrap.png`.
