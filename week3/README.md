@@ -97,3 +97,14 @@ size-64 Metropolis window run and fit the Wolff susceptibility peaks with:
 The command uses 500 block-bootstrap replicates at block lengths 2,000, 4,000,
 and 8,000. It draws the 8,000-step error bars, reports their stability across
 all three choices, and writes `evidence/magnetization-compare.png`.
+
+Compare the size-64 autocorrelation times per (L^2) attempted or flipped spin
+updates with:
+
+```bash
+.venv/bin/python scripts/compare.py
+```
+
+The command converts each Wolff cluster move by its measured mean cluster size
+and writes `evidence/tau-compare.png`. This normalization compares spin-update
+work, not wall-clock time.
