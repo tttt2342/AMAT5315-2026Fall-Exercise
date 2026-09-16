@@ -84,3 +84,16 @@ sizes with:
 ```
 
 The command writes `evidence/tau.png` with a logarithmic vertical axis.
+
+## Metropolis and Wolff comparison
+
+After the Wolff window runs have finished, compare their magnetization with the
+size-64 Metropolis window run and fit the Wolff susceptibility peaks with:
+
+```bash
+.venv/bin/python scripts/magnetization_compare.py
+```
+
+The command uses 500 block-bootstrap replicates at block lengths 2,000, 4,000,
+and 8,000. It draws the 8,000-step error bars, reports their stability across
+all three choices, and writes `evidence/magnetization-compare.png`.
