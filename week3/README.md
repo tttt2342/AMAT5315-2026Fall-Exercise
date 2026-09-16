@@ -58,3 +58,12 @@ length envelopes with:
 
 The command uses 500 replicates and seed 2026, then writes
 `evidence/chi-bootstrap.png`.
+
+Draw the first 2,000 measured sweeps of the size-64 magnetization traces at
+`T=2.3` and `T=3.0` with:
+
+```bash
+.venv/bin/python scripts/trace.py
+```
+
+The command writes `evidence/trace.png`.
