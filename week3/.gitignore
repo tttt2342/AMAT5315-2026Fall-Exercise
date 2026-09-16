@@ -1,2 +1,5 @@
 /target/
 /runs/
+/artifacts/
+/.venv/
+.DS_Store
