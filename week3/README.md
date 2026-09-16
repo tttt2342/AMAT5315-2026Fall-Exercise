@@ -37,3 +37,14 @@ temperature with:
 ```
 
 This writes the reported values to `evidence/peaks.txt` as well as stdout.
+
+Compute naive, 50-block, and autocorrelation-aware diagnostics for every
+Metropolis temperature with:
+
+```bash
+.venv/bin/python scripts/errors.py > evidence/errors.txt
+```
+
+The integrated autocorrelation time uses the running-window rule
+`lag > 6 * tau_int`, with `tau_int = 1/2 + sum(rho(lag))`. The reported ratio
+is `block50_se / naive_se`.
