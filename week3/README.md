@@ -67,3 +67,11 @@ Draw the first 2,000 measured sweeps of the size-64 magnetization traces at
 ```
 
 The command writes `evidence/trace.png`.
+
+Draw the size-64, `T=2.3` autocorrelation and block-binning diagnostics with:
+
+```bash
+.venv/bin/python scripts/acf_binning.py
+```
+
+The command writes `evidence/acf-binning.png`.

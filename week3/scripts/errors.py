@@ -119,8 +119,8 @@ def load_selected_series() -> dict[tuple[int, float], np.ndarray]:
     return series
 
 
-def integrated_autocorrelation_time(values: np.ndarray) -> tuple[float, int]:
-    """Return tau_int and its self-consistent six-tau cutoff lag."""
+def normalized_autocorrelation(values: np.ndarray) -> np.ndarray:
+    """Compute rho(lag) with n-lag valid pairs using an FFT."""
     centered = values - values.mean()
     sample_count = len(centered)
     variance = np.dot(centered, centered) / sample_count
@@ -133,7 +133,13 @@ def integrated_autocorrelation_time(values: np.ndarray) -> tuple[float, int]:
     autocovariance = np.fft.irfft(transform * transform.conjugate(), n=fft_size)
     autocovariance = autocovariance[:sample_count]
     autocovariance /= np.arange(sample_count, 0, -1)
-    autocorrelation = autocovariance / autocovariance[0]
+    return autocovariance / autocovariance[0]
+
+
+def integrated_autocorrelation_time(values: np.ndarray) -> tuple[float, int]:
+    """Return tau_int and its self-consistent six-tau cutoff lag."""
+    autocorrelation = normalized_autocorrelation(values)
+    sample_count = len(autocorrelation)
 
     tau_int = 0.5
     for lag in range(1, sample_count):
