@@ -1,0 +1,4 @@
+L=32: T_peak = 2.349623, chi_peak = 20.429485, fit window = [2.25, 2.45], mean |M|(T=1.50) = 0.986233
+L=64: T_peak = 2.310820, chi_peak = 58.352915, fit window = [2.20, 2.40], mean |M|(T=1.50) = 0.986474
+T_c = 2.272017 (2*T_peak(64) - T_peak(32))
+Onsager T_c = 2.269185; relative deviation = +0.125%

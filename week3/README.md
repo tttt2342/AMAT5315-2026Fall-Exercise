@@ -28,3 +28,12 @@ python3 -m venv .venv
 When coarse and window runs overlap, the script uses the longer window run. It
 checks every input against the measurement count in `run.json` before writing
 `evidence/magnetization.png` and `evidence/susceptibility.png`.
+
+Fit the two finite-size susceptibility peaks and estimate the critical
+temperature with:
+
+```bash
+.venv/bin/python scripts/peaks.py
+```
+
+This writes the reported values to `evidence/peaks.txt` as well as stdout.
