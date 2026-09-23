@@ -160,6 +160,7 @@ def plot_results(
         [r"Taylor--Green, $n=64$, $\nu=0.1$", r"Random flow, $n=128$, $\nu=0.004$"],
         [taylor_results, random_results],
     ):
+        unstable_index = 0
         for index, result in enumerate(results):
             finite = np.isfinite(result.energies) & (result.energies > 0.0)
             method = "RK4" if result.spec.method == "rk4" else "Euler"
@@ -184,7 +185,7 @@ def plot_results(
                 )
                 axis.annotate(
                     f"stop {result.stopping_time:.3f}",
-                    xy=(result.stopping_time, 0.96),
+                    xy=(result.stopping_time, 0.96 - 0.16 * unstable_index),
                     xycoords=("data", "axes fraction"),
                     xytext=(-4, 0),
                     textcoords="offset points",
@@ -194,6 +195,7 @@ def plot_results(
                     color=colour,
                     fontsize=8.5,
                 )
+                unstable_index += 1
         axis.set_yscale("log")
         axis.set_xlabel(r"time $t$")
         axis.set_ylabel(r"kinetic energy $E$")
@@ -261,21 +263,30 @@ def main() -> None:
     ]
     taylor_results = [run_case(spec, taylor_field) for spec in taylor_specs]
     random_results = [run_case(spec, random_field) for spec in random_specs]
-    all_results = [*taylor_results, *random_results]
-    write_summary(all_results, initial_max_speed)
 
     rk4_results = [result for result in random_results if result.spec.method == "rk4"]
     stable_rk4 = [result for result in rk4_results if result.reached_end]
     unstable_rk4 = [result for result in rk4_results if not result.reached_end]
-    if not stable_rk4 or not unstable_rk4:
-        outcomes = ", ".join(
-            f"dt={result.spec.dt:g}: {'stable' if result.reached_end else 'unstable'}"
-            for result in rk4_results
-        )
-        raise RuntimeError(
-            "the two requested random RK4 steps do not bracket the stability boundary "
-            f"({outcomes}); an additional step size must be selected"
-        )
+    if not stable_rk4 and unstable_rk4:
+        for dt_milliseconds in range(36, 1, -2):
+            dt = dt_milliseconds / 1000.0
+            extra_spec = RunSpec(
+                f"random-rk4-dt{dt:.3f}", "random", "rk4", 0.004, dt, 10.0
+            )
+            extra_result = run_case(extra_spec, random_field)
+            random_results.insert(-1, extra_result)
+            rk4_results.append(extra_result)
+            if extra_result.reached_end:
+                stable_rk4.append(extra_result)
+                break
+            unstable_rk4.append(extra_result)
+    if not stable_rk4:
+        raise RuntimeError("no stable random RK4 step was found down to dt=0.002")
+    if not unstable_rk4:
+        raise RuntimeError("the requested decreasing scan found no unstable random RK4 run")
+
+    all_results = [*taylor_results, *random_results]
+    write_summary(all_results, initial_max_speed)
 
     selected_random = [stable_rk4[0], unstable_rk4[0], random_results[-1]]
     plot_results(taylor_results, selected_random)

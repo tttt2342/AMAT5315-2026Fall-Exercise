@@ -79,3 +79,16 @@ Compare and draw the saved Taylor-Green run from the same directory:
 ```text
 python3 plot_taylor_green.py
 ```
+
+Run the paired initial-vorticity sensitivity experiment from the same directory:
+
+```text
+python3 run_sensitivity.py
+```
+
+Run the time-step stability scan and draw its energy histories from the same
+directory:
+
+```text
+python3 run_blowup_scan.py
+```

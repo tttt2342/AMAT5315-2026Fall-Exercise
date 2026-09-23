@@ -92,7 +92,7 @@ fn write_array(writer: &mut impl Write, values: &[f64]) -> io::Result<()> {
         if index > 0 {
             write!(writer, ",")?;
         }
-        write!(writer, "{value:.6}")?;
+        write!(writer, "{value:.17e}")?;
     }
     write!(writer, "]")
 }
