@@ -71,7 +71,7 @@ fn invalid_input(message: impl Into<String>) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput, message.into())
 }
 
-fn validate(cli: &Cli, field: &InputField) -> Result<usize, io::Error> {
+fn validate(cli: &Cli, field: &InputField) -> Result<(), io::Error> {
     if field.n == 0 || !field.n.is_multiple_of(2) {
         return Err(invalid_input("input n must be positive and even"));
     }
@@ -83,11 +83,7 @@ fn validate(cli: &Cli, field: &InputField) -> Result<usize, io::Error> {
             "require nu >= 0, dt > 0, t-end >= 0, and every > 0",
         ));
     }
-    let snapshot_steps = (cli.every / cli.dt).round() as usize;
-    if snapshot_steps == 0 {
-        return Err(invalid_input("every/dt must round to at least one step"));
-    }
-    Ok(snapshot_steps)
+    Ok(())
 }
 
 fn write_array(writer: &mut impl Write, values: &[f64]) -> io::Result<()> {
@@ -157,7 +153,7 @@ fn write_run_metadata(path: &Path, field: &InputField, cli: &Cli) -> Result<(), 
 }
 
 fn run(cli: Cli, input: InputField) -> Result<bool, Box<dyn Error>> {
-    let snapshot_steps = validate(&cli, &input)?;
+    validate(&cli, &input)?;
     fs::create_dir_all(&cli.out)?;
     write_run_metadata(&cli.out.join("run.json"), &input, &cli)?;
     let mut fields_writer = BufWriter::new(File::create(cli.out.join("fields.jsonl"))?);
@@ -176,8 +172,10 @@ fn run(cli: Cli, input: InputField) -> Result<bool, Box<dyn Error>> {
 
     let mut time = 0.0;
     let mut step = 0_usize;
+    let mut next_snapshot = cli.every;
     while time < cli.t_end {
-        let step_size = cli.dt.min(cli.t_end - time);
+        let output_target = next_snapshot.min(cli.t_end);
+        let step_size = cli.dt.min(output_target - time).min(cli.t_end - time);
         integrator.step(&mut omega, step_size, &|state, rate| {
             equation.rate(state, rate)
         });
@@ -189,10 +187,15 @@ fn run(cli: Cli, input: InputField) -> Result<bool, Box<dyn Error>> {
         }
 
         let fields = equation.fields(&omega);
-        let is_snapshot = step.is_multiple_of(snapshot_steps);
+        let tolerance = 32.0 * f64::EPSILON * time.max(1.0);
+        let at_scheduled_snapshot = (time - next_snapshot).abs() <= tolerance;
+        let is_snapshot = at_scheduled_snapshot || time == cli.t_end;
         if !save_if_finite(&mut fields_writer, time, step, &fields, is_snapshot)? {
             fields_writer.flush()?;
             return Ok(false);
+        }
+        if at_scheduled_snapshot {
+            next_snapshot += cli.every;
         }
     }
     fields_writer.flush()?;

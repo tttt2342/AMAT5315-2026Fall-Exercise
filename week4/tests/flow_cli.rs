@@ -76,3 +76,49 @@ fn taylor_green_requires_viscosity_at_positive_time() {
         .unwrap();
     assert!(!output.status.success());
 }
+
+#[test]
+fn snapshots_land_on_requested_times_when_dt_does_not_divide_interval() {
+    let field = Command::new(env!("CARGO_BIN_EXE_field"))
+        .args(["taylor-green", "--n", "16"])
+        .output()
+        .unwrap();
+    assert!(field.status.success());
+
+    let output_directory = tempfile::tempdir().unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_fluid"))
+        .args([
+            "--method",
+            "rk4",
+            "--nu",
+            "0.1",
+            "--dt",
+            "0.03",
+            "--t-end",
+            "0.1",
+            "--every",
+            "0.05",
+            "--out",
+            output_directory.path().to_str().unwrap(),
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(&field.stdout)
+        .unwrap();
+    let fluid = child.wait_with_output().unwrap();
+    assert!(fluid.status.success());
+
+    let stdout = String::from_utf8(fluid.stdout).unwrap();
+    let times: Vec<f64> = stdout
+        .lines()
+        .skip(1)
+        .map(|line| line.split('\t').next().unwrap().parse().unwrap())
+        .collect();
+    assert_eq!(times, [0.0, 0.05, 0.1]);
+}
