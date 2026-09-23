@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 rustfft = "6.2"
+
+[[bin]]
+name = "measure-rk4"
+path = "scripts/measure_rk4.rs"

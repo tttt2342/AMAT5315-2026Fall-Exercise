@@ -32,3 +32,13 @@ Run the tests with:
 ```text
 cargo test
 ```
+
+Reproduce the line-stability figure after installing `requirements.txt`:
+
+```text
+cd scripts
+python3 plot_line_stability.py
+```
+
+The plotting script calls `measure-rk4`, which measures the colour map by
+advancing the complex test equation with the library's `RungeKutta4` stepper.
