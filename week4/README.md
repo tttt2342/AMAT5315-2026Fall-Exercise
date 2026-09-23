@@ -73,3 +73,9 @@ Run the differentiation comparison from the scripts directory:
 cd scripts
 cargo run --quiet --bin differentiation-comparison
 ```
+
+Compare and draw the saved Taylor-Green run from the same directory:
+
+```text
+python3 plot_taylor_green.py
+```
