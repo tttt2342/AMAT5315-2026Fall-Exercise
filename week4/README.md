@@ -66,3 +66,10 @@ cargo run --quiet --bin field -- taylor-green --n 64 |
 The solver uses Fourier pseudospectral derivatives and applies the two-thirds
 cutoff to both the vorticity and every nonlinear product. Its output contract is
 defined by `field.design.toml` and `fluid.design.toml`.
+
+Run the differentiation comparison from the scripts directory:
+
+```text
+cd scripts
+cargo run --quiet --bin differentiation-comparison
+```
