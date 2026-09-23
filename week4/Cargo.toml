@@ -9,3 +9,7 @@ rustfft = "6.2"
 [[bin]]
 name = "measure-rk4"
 path = "scripts/measure_rk4.rs"
+
+[[bin]]
+name = "line-pulse"
+path = "scripts/simulate_line_pulse.rs"

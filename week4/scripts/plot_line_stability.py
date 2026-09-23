@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import io
 import subprocess
 from pathlib import Path
 
@@ -71,6 +72,30 @@ def line_modes(step_size: float) -> tuple[np.ndarray, np.ndarray]:
     return real, imaginary
 
 
+def pulse_history(step_size: float) -> tuple[np.ndarray, np.ndarray]:
+    result = subprocess.run(
+        [
+            "cargo",
+            "run",
+            "--quiet",
+            "--bin",
+            "line-pulse",
+            "--",
+            str(step_size),
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    data = np.loadtxt(io.StringIO(result.stdout))
+    times = data[:, 0]
+    states = data[:, 1:]
+    if states.shape[1] != 64 or not np.isclose(times[-1], 6.0):
+        raise RuntimeError("line-pulse returned an unexpected grid or final time")
+    return times, states
+
+
 def main() -> None:
     real, imaginary, growth = measured_rk4_growth()
     xx, yy = np.meshgrid(real, imaginary)
@@ -78,6 +103,8 @@ def main() -> None:
     euler, midpoint, rk4 = stability_functions(z)
     if not np.allclose(growth, rk4, rtol=2.0e-13, atol=2.0e-13):
         raise RuntimeError("measured RK4 growth does not match its stability function")
+    stable_times, stable_states = pulse_history(0.045)
+    unstable_times, unstable_states = pulse_history(0.056)
 
     plt.rcParams.update(
         {
@@ -87,7 +114,12 @@ def main() -> None:
             "legend.fontsize": 9,
         }
     )
-    fig, ax = plt.subplots(figsize=(7.4, 6.2), constrained_layout=True)
+    fig = plt.figure(figsize=(15.8, 5.6), constrained_layout=True)
+    grid = fig.add_gridspec(1, 4, width_ratios=[1.08, 0.055, 1.0, 1.0])
+    ax = fig.add_subplot(grid[0, 0])
+    colour_axis = fig.add_subplot(grid[0, 1])
+    stable_axis = fig.add_subplot(grid[0, 2])
+    unstable_axis = fig.add_subplot(grid[0, 3])
     image = ax.pcolormesh(
         real,
         imaginary,
@@ -152,8 +184,31 @@ def main() -> None:
     ax.set_title(r"Measured RK4 growth for $y' = \lambda y$, $h=1$")
     ax.legend(handles=handles, loc="upper right", framealpha=0.94)
 
-    colour_bar = fig.colorbar(image, ax=ax, shrink=0.88, pad=0.025)
+    colour_bar = fig.colorbar(image, cax=colour_axis)
     colour_bar.set_label(r"growth per step $|y_1|/|y_0|$")
+
+    pulse_panels = [
+        (stable_axis, stable_times, stable_states, 0.045),
+        (unstable_axis, unstable_times, unstable_states, 0.056),
+    ]
+    for pulse_axis, times, states, step_size in pulse_panels:
+        pulse_axis.imshow(
+            states,
+            cmap="RdBu_r",
+            vmin=-1.0,
+            vmax=1.0,
+            interpolation="nearest",
+            aspect="auto",
+            origin="upper",
+            extent=(0.0, 2.0 * np.pi, times[-1], times[0]),
+        )
+        pulse_axis.set_xlim(0.0, 2.0 * np.pi)
+        pulse_axis.set_ylim(6.0, 0.0)
+        pulse_axis.set_xticks([0.0, np.pi, 2.0 * np.pi], ["0", r"$\pi$", r"$2\pi$"])
+        pulse_axis.set_xlabel(r"$x$")
+        pulse_axis.set_title(rf"RK4 pulse, $h={step_size:.3f}$")
+    stable_axis.set_ylabel(r"$t$")
+    unstable_axis.set_ylabel(r"$t$")
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUTPUT, dpi=220)
