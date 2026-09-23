@@ -1,0 +1,43 @@
+{
+  "case": "random",
+  "n": 128,
+  "nu": 0.004,
+  "seed": 2026,
+  "wavenumbers": [
+    2,
+    6
+  ],
+  "method": "rk4",
+  "t_end": 2.0,
+  "reference": {
+    "dt": 0.0025,
+    "relative_omega_error": 0.0,
+    "artifact": "artifacts/convergence/rk4-dt0.0025",
+    "is_reference": true
+  },
+  "runs": [
+    {
+      "dt": 0.02,
+      "relative_omega_error": 4.738751458956495e-05,
+      "artifact": "artifacts/convergence/rk4-dt0.02",
+      "is_reference": false
+    },
+    {
+      "dt": 0.0125,
+      "relative_omega_error": 7.0779692304552355e-06,
+      "artifact": "artifacts/convergence/rk4-dt0.0125",
+      "is_reference": false
+    },
+    {
+      "dt": 0.01,
+      "relative_omega_error": 2.8736250897812225e-06,
+      "artifact": "artifacts/convergence/rk4-dt0.01",
+      "is_reference": false
+    }
+  ],
+  "log_log_fit": {
+    "slope": 4.043853219359716,
+    "intercept": 5.8623133669051155,
+    "reference_dt": 0.0025
+  }
+}

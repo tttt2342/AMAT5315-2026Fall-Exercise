@@ -98,3 +98,10 @@ Draw selected snapshots from the saved random-flow run from the same directory:
 ```text
 python3 plot_random_vorticity.py
 ```
+
+Run the RK4 order and random-flow reference-convergence studies from the same
+directory:
+
+```text
+python3 run_order_convergence.py
+```
