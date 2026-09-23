@@ -50,3 +50,19 @@ The one-lap spatial/temporal comparison is reproduced from the same directory:
 ```text
 python3 plot_line_accuracy.py
 ```
+
+## Two-dimensional vorticity solver
+
+`field` writes either the Taylor-Green field or a seeded random field as one
+JSON object. `fluid` reads that object on standard input and integrates the
+vorticity equation with the selected implementation of `Integrator`:
+
+```text
+cargo run --quiet --bin field -- taylor-green --n 64 |
+  cargo run --quiet --bin fluid -- --method rk4 --nu 0.1 --dt 0.01 \
+    --t-end 1 --every 0.1 --out artifacts/taylor-green
+```
+
+The solver uses Fourier pseudospectral derivatives and applies the two-thirds
+cutoff to both the vorticity and every nonlinear product. Its output contract is
+defined by `field.design.toml` and `fluid.design.toml`.

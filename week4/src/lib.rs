@@ -1,5 +1,12 @@
 //! Time integrators and one-dimensional periodic advection-diffusion rates.
 
+pub mod flow;
+
+pub use flow::{
+    diagnostics, random_velocity_field, taylor_green_field, FlowFields, InputField, SpectralGrid,
+    VorticityEquation,
+};
+
 use rustfft::num_complex::Complex;
 use rustfft::{Fft, FftPlanner};
 use std::f64::consts::TAU;
