@@ -92,3 +92,9 @@ directory:
 ```text
 python3 run_blowup_scan.py
 ```
+
+Draw selected snapshots from the saved random-flow run from the same directory:
+
+```text
+python3 plot_random_vorticity.py
+```
