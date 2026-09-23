@@ -1,114 +1,110 @@
-# Week 4: integrators on a periodic line
+# Week 4: reproducibility guide
 
-This Rust library contains one `Integrator` trait implemented by:
+This directory contains a Rust library of explicit time integrators, periodic
+one-dimensional advection--diffusion operators, and a two-dimensional
+Fourier-pseudospectral vorticity solver. The commands below regenerate every
+committed file in `week4/evidence/` from a clean clone.
 
-- `ForwardEuler`
-- `ExplicitMidpoint`
-- `RungeKutta4`
+Run setup commands from `week4/`. Run every Python script from
+`week4/scripts/`, as shown below.
 
-Each implementation advances a `&mut [f64]` by one step using an autonomous
-rate function `Fn(&[f64], &mut [f64])`. The library also provides the rate of
+## 1. Install and build
 
-```text
-u_t + c u_x = nu u_xx
-```
-
-on the periodic grid `[0, 2 pi)` through `FourierAdvectionDiffusion` and
-`CenteredAdvectionDiffusion`. In the Fourier operator, the Nyquist mode's first
-derivative is zero but its second derivative is retained.
-
-Example:
-
-```rust
-use continuum::{FourierAdvectionDiffusion, Integrator, RungeKutta4};
-
-let equation = FourierAdvectionDiffusion::new(64, 1.0, 0.05);
-let mut state = vec![0.0; 64];
-RungeKutta4.step(&mut state, 0.01, &|u, du| equation.rate(u, du));
-```
-
-Run the tests with:
+The prerequisites are a stable Rust toolchain and Python 3.11 or newer. From
+`week4/`, create a virtual environment, install the pinned Python packages, and
+build the Rust binaries:
 
 ```text
-cargo test
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cargo build --release --locked --bins
 ```
 
-Reproduce the line-stability figure after installing `requirements.txt`:
+Optional verification:
 
 ```text
-cd scripts
-python3 plot_line_stability.py
+cargo test --locked --all-targets
+cargo clippy --locked --all-targets -- -D warnings
 ```
 
-The plotting script calls `measure-rk4`, which measures the colour map by
-advancing the complex test equation with the library's `RungeKutta4` stepper.
-It also calls `line-pulse` for the stable and unstable Gaussian-pulse panels;
-both use the library's Fourier rate and `RungeKutta4` implementation.
+## 2. Generate the two saved flow pipelines
 
-The one-lap spatial/temporal comparison is reproduced from the same directory:
+These two pipelines create the inputs used by `plot_taylor_green.py` and
+`plot_random_vorticity.py`.
 
-```text
-python3 plot_line_accuracy.py
-```
+### Taylor--Green pipeline
 
-## Two-dimensional vorticity solver
-
-`field` writes either the Taylor-Green field or a seeded random field as one
-JSON object. `fluid` reads that object on standard input and integrates the
-vorticity equation with the selected implementation of `Integrator`:
+Values: RK4, `n = 64`, `nu = 0.1`, `dt = 0.01`, `t_end = 1`, and snapshots
+every `0.1`.
 
 ```text
-cargo run --quiet --bin field -- taylor-green --n 64 |
-  cargo run --quiet --bin fluid -- --method rk4 --nu 0.1 --dt 0.01 \
+mkdir -p artifacts/taylor-green
+target/release/field taylor-green --n 64 |
+  target/release/fluid --method rk4 --nu 0.1 --dt 0.01 \
     --t-end 1 --every 0.1 --out artifacts/taylor-green
+target/release/field taylor-green --n 64 --t 1 --nu 0.1 \
+  > artifacts/taylor-green/exact-t1.json
 ```
 
-The solver uses Fourier pseudospectral derivatives and applies the two-thirds
-cutoff to both the vorticity and every nonlinear product. Its output contract is
-defined by `field.design.toml` and `fluid.design.toml`.
+### Random-flow pipeline
 
-Run the differentiation comparison from the scripts directory:
+Values: RK4, `n = 128`, `nu = 0.004`, `dt = 0.01`, `t_end = 10`, seed
+`2026`, initial wavenumbers `2--6`, and snapshots every `0.1`.
+
+```text
+mkdir -p artifacts/random
+target/release/field random --n 128 --seed 2026 --k-min 2 --k-max 6 |
+  target/release/fluid --method rk4 --nu 0.004 --dt 0.01 \
+    --t-end 10 --every 0.1 --out artifacts/random
+```
+
+## 3. Regenerate the committed evidence
+
+Change to the scripts directory once:
 
 ```text
 cd scripts
+```
+
+Then run these commands in order. Paths in the output column are relative to
+`week4/`.
+
+| Order | Command | Committed file written |
+|---:|---|---|
+| 1 | `../.venv/bin/python plot_line_stability.py` | `evidence/line-stability.png` |
+| 2 | `../.venv/bin/python plot_line_accuracy.py` | `evidence/line-accuracy.png` |
+| 3 | `../.venv/bin/python plot_taylor_green.py` | `evidence/taylor-green.png` |
+| 4 | `../.venv/bin/python plot_random_vorticity.py` | `evidence/random.png` |
+| 5 | `../.venv/bin/python run_blowup_scan.py` | `evidence/blowup.png` |
+| 6 | `../.venv/bin/python run_sensitivity.py` | `evidence/sensitivity.png` |
+| 7 | `../.venv/bin/python run_order_convergence.py` | `evidence/order.png`, `evidence/convergence.json` |
+| 8 | `../.venv/bin/python plot_convergence.py` | `evidence/convergence.png` |
+
+The scripts that launch simulations also populate `week4/artifacts/`. In
+particular, command 7 retains the random-flow final fields required by command
+8 for the fourth-order Richardson estimate.
+
+The Rust sources in `scripts/` are helper binaries invoked by the Python
+drivers: `measure_rk4.rs` and `simulate_line_pulse.rs` support command 1, while
+`line_accuracy.rs` supports command 2. `differentiation_comparison.rs` prints
+the Fourier-versus-centred-difference error table and does not write a
+committed evidence file; run it, if desired, with:
+
+```text
 cargo run --quiet --bin differentiation-comparison
 ```
 
-Compare and draw the saved Taylor-Green run from the same directory:
+After the eight numbered commands finish, the complete committed evidence set
+is:
 
 ```text
-python3 plot_taylor_green.py
-```
-
-Run the paired initial-vorticity sensitivity experiment from the same directory:
-
-```text
-python3 run_sensitivity.py
-```
-
-Run the time-step stability scan and draw its energy histories from the same
-directory:
-
-```text
-python3 run_blowup_scan.py
-```
-
-Draw selected snapshots from the saved random-flow run from the same directory:
-
-```text
-python3 plot_random_vorticity.py
-```
-
-Run the RK4 order and random-flow reference-convergence studies from the same
-directory:
-
-```text
-python3 run_order_convergence.py
-```
-
-Plot the saved random-flow convergence errors and apply the fourth-order
-Richardson step selection from the same directory:
-
-```text
-python3 plot_convergence.py
+evidence/blowup.png
+evidence/convergence.json
+evidence/convergence.png
+evidence/line-accuracy.png
+evidence/line-stability.png
+evidence/order.png
+evidence/random.png
+evidence/sensitivity.png
+evidence/taylor-green.png
 ```
