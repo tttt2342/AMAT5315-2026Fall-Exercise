@@ -44,3 +44,9 @@ The plotting script calls `measure-rk4`, which measures the colour map by
 advancing the complex test equation with the library's `RungeKutta4` stepper.
 It also calls `line-pulse` for the stable and unstable Gaussian-pulse panels;
 both use the library's Fourier rate and `RungeKutta4` implementation.
+
+The one-lap spatial/temporal comparison is reproduced from the same directory:
+
+```text
+python3 plot_line_accuracy.py
+```
