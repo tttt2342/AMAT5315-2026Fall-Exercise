@@ -105,3 +105,10 @@ directory:
 ```text
 python3 run_order_convergence.py
 ```
+
+Plot the saved random-flow convergence errors and apply the fourth-order
+Richardson step selection from the same directory:
+
+```text
+python3 plot_convergence.py
+```
