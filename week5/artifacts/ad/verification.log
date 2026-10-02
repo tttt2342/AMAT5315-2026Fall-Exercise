@@ -1,0 +1,9 @@
+/Users/tianyizhang/.matplotlib is not a writable directory
+Matplotlib created a temporary cache directory at /var/folders/cd/t2gzrwdj0zlcqkdxycbswwl00000gn/T/matplotlib-jrhr4dl2 because there was an issue with the default path (/Users/tianyizhang/.matplotlib); it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+Matplotlib is building the font cache; this may take a moment.
+Maximum derivative errors: {'forward': 2.1316282072803006e-14, 'reverse': 1.4210854715202004e-14, 'finite difference': 4.949924914399162e-09}
+{'N': 64, 'P': 192, 'energy_seconds': 1.2832926586270332e-05, 'forward_ratio': 160.02779541702196, 'reverse_ratio': 1.9903478055772266, 'relative_errors': {'forward': 1.1953844516639087e-15, 'reverse': 1.0625639570345854e-15}}
+{'N': 128, 'P': 384, 'energy_seconds': 3.616698086261749e-05, 'forward_ratio': 493.6420082917031, 'reverse_ratio': 2.0414456404181904, 'relative_errors': {'forward': 7.588685381844254e-16, 'reverse': 7.588685381844254e-16}}
+{'N': 256, 'P': 768, 'energy_seconds': 8.874991908669472e-05, 'forward_ratio': 864.6683963922367, 'reverse_ratio': 2.539438267685963, 'relative_errors': {'forward': 4.13943670957697e-16, 'reverse': 8.27887341915394e-16}}
+{'N': 512, 'P': 1536, 'energy_seconds': 0.0002198750153183937, 'forward_ratio': 2247.1836616699634, 'reverse_ratio': 3.508811295740166, 'relative_errors': {'forward': 1.5711030081419944e-15, 'reverse': 1.0474020054279961e-15}}
+{'N': 1024, 'P': 3072, 'energy_seconds': 0.0009778749663382769, 'forward_ratio': 4708.778039501031, 'reverse_ratio': 4.303549978440174, 'relative_errors': {'forward': 1.9490832058904574e-15, 'reverse': 1.3493652963857014e-15}}
