@@ -1,0 +1,10 @@
+{
+  "dt": 0.03,
+  "dx": 0.25,
+  "mode": "born",
+  "nx": 805,
+  "nz": 269,
+  "receivers": 91,
+  "shots": 9,
+  "steps": 1200
+}

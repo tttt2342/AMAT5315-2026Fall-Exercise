@@ -1,0 +1,214 @@
+[
+  {
+    "budget": 1,
+    "relative_l2_error": 0.0,
+    "peak_saved_states": 2,
+    "peak_saved_bytes": 53792,
+    "forward_calls_per_shot": 28680,
+    "audits": [
+      {
+        "grad_order_errors": 0,
+        "invalid_restores": 0,
+        "budget_overruns": 0,
+        "invalid_actions": 0,
+        "forward_calls": 28680,
+        "peak": 2
+      },
+      {
+        "grad_order_errors": 0,
+        "invalid_restores": 0,
+        "budget_overruns": 0,
+        "invalid_actions": 0,
+        "forward_calls": 28680,
+        "peak": 2
+      },
+      {
+        "grad_order_errors": 0,
+        "invalid_restores": 0,
+        "budget_overruns": 0,
+        "invalid_actions": 0,
+        "forward_calls": 28680,
+        "peak": 2
+      }
+    ]
+  },
+  {
+    "budget": 3,
+    "relative_l2_error": 0.0,
+    "peak_saved_states": 4,
+    "peak_saved_bytes": 107584,
+    "forward_calls_per_shot": 1695,
+    "audits": [
+      {
+        "grad_order_errors": 0,
+        "invalid_restores": 0,
+        "budget_overruns": 0,
+        "invalid_actions": 0,
+        "forward_calls": 1695,
+        "peak": 4
+      },
+      {
+        "grad_order_errors": 0,
+        "invalid_restores": 0,
+        "budget_overruns": 0,
+        "invalid_actions": 0,
+        "forward_calls": 1695,
+        "peak": 4
+      },
+      {
+        "grad_order_errors": 0,
+        "invalid_restores": 0,
+        "budget_overruns": 0,
+        "invalid_actions": 0,
+        "forward_calls": 1695,
+        "peak": 4
+      }
+    ]
+  },
+  {
+    "budget": 5,
+    "relative_l2_error": 0.0,
+    "peak_saved_states": 6,
+    "peak_saved_bytes": 161376,
+    "forward_calls_per_shot": 990,
+    "audits": [
+      {
+        "grad_order_errors": 0,
+        "invalid_restores": 0,
+        "budget_overruns": 0,
+        "invalid_actions": 0,
+        "forward_calls": 990,
+        "peak": 6
+      },
+      {
+        "grad_order_errors": 0,
+        "invalid_restores": 0,
+        "budget_overruns": 0,
+        "invalid_actions": 0,
+        "forward_calls": 990,
+        "peak": 6
+      },
+      {
+        "grad_order_errors": 0,
+        "invalid_restores": 0,
+        "budget_overruns": 0,
+        "invalid_actions": 0,
+        "forward_calls": 990,
+        "peak": 6
+      }
+    ]
+  },
+  {
+    "budget": 10,
+    "relative_l2_error": 0.0,
+    "peak_saved_states": 11,
+    "peak_saved_bytes": 295856,
+    "forward_calls_per_shot": 642,
+    "audits": [
+      {
+        "grad_order_errors": 0,
+        "invalid_restores": 0,
+        "budget_overruns": 0,
+        "invalid_actions": 0,
+        "forward_calls": 642,
+        "peak": 11
+      },
+      {
+        "grad_order_errors": 0,
+        "invalid_restores": 0,
+        "budget_overruns": 0,
+        "invalid_actions": 0,
+        "forward_calls": 642,
+        "peak": 11
+      },
+      {
+        "grad_order_errors": 0,
+        "invalid_restores": 0,
+        "budget_overruns": 0,
+        "invalid_actions": 0,
+        "forward_calls": 642,
+        "peak": 11
+      }
+    ]
+  }
+]
+{
+  "image_l2": 0.0006703774060378255,
+  "relative_error": 5.9103638649915524e-09,
+  "peak_saved_states": 6,
+  "peak_saved_bytes": 20788320,
+  "audits": [
+    {
+      "grad_order_errors": 0,
+      "invalid_restores": 0,
+      "budget_overruns": 0,
+      "invalid_actions": 0,
+      "forward_calls": 7884,
+      "peak": 6
+    },
+    {
+      "grad_order_errors": 0,
+      "invalid_restores": 0,
+      "budget_overruns": 0,
+      "invalid_actions": 0,
+      "forward_calls": 7884,
+      "peak": 6
+    },
+    {
+      "grad_order_errors": 0,
+      "invalid_restores": 0,
+      "budget_overruns": 0,
+      "invalid_actions": 0,
+      "forward_calls": 7884,
+      "peak": 6
+    },
+    {
+      "grad_order_errors": 0,
+      "invalid_restores": 0,
+      "budget_overruns": 0,
+      "invalid_actions": 0,
+      "forward_calls": 7884,
+      "peak": 6
+    },
+    {
+      "grad_order_errors": 0,
+      "invalid_restores": 0,
+      "budget_overruns": 0,
+      "invalid_actions": 0,
+      "forward_calls": 7884,
+      "peak": 6
+    },
+    {
+      "grad_order_errors": 0,
+      "invalid_restores": 0,
+      "budget_overruns": 0,
+      "invalid_actions": 0,
+      "forward_calls": 7884,
+      "peak": 6
+    },
+    {
+      "grad_order_errors": 0,
+      "invalid_restores": 0,
+      "budget_overruns": 0,
+      "invalid_actions": 0,
+      "forward_calls": 7884,
+      "peak": 6
+    },
+    {
+      "grad_order_errors": 0,
+      "invalid_restores": 0,
+      "budget_overruns": 0,
+      "invalid_actions": 0,
+      "forward_calls": 7884,
+      "peak": 6
+    },
+    {
+      "grad_order_errors": 0,
+      "invalid_restores": 0,
+      "budget_overruns": 0,
+      "invalid_actions": 0,
+      "forward_calls": 7884,
+      "peak": 6
+    }
+  ]
+}
