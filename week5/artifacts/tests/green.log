@@ -1,18 +1,9 @@
    Compiling seismic v0.1.0 (/Users/tianyizhang/AMAT5315/AMAT5315-2026Fall-Exercise/week5/seismic)
-warning: function `read` is never used
-  --> src/npy.rs:10:8
-   |
-10 | pub fn read(path:&Path,shape:&[usize])->Vec<f64>{
-   |        ^^^^
-   |
-   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
-
-warning: `seismic` (bin "seismic") generated 1 warning
-    Finished `release` profile [optimized] target(s) in 4.87s
+    Finished `release` profile [optimized] target(s) in 6.24s
      Running tests/physics.rs (seismic/target/release/build/seismic/c610a2b8d07c9d1f/out/physics-c610a2b8d07c9d1f)
 
 running 1 test
 test enzyme_cube_and_step_derivatives ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
 

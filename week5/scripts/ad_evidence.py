@@ -18,7 +18,7 @@ def graph(fun,name):
     for i,v in enumerate(jp.invars):
         k=f'in{i}'; g.add_node(k); labels[k]='r'; producers[str(v)]=k; layers[k]=0
     for i,eq in enumerate(jp.eqns):
-        k=f'op{i}'; g.add_node(k); labels[k]=eq.primitive.name+(' '+str(eq.params) if eq.params else '')
+        k=f'op{i}'; g.add_node(k); labels[k]=eq.primitive.name+(f"[y={eq.params['y']}]" if 'y' in eq.params else '')
         sources=[]
         for j,v in enumerate(eq.invars):
             if str(v) in producers: q=producers[str(v)]
@@ -56,6 +56,7 @@ axs[0].set_ylabel('dU/dr'); axs[0].axhline(0,color='gray',lw=.5); axs[1].set_yla
 assert errs['forward']<1e-12 and errs['reverse']<1e-12
 assert max(errs['forward'],errs['reverse'])<errs['finite difference']
 graph(energy,'graph.png'); jp=graph(jax.grad(energy),'grad-graph.png'); assert any(e.primitive.name=='add_any' for e in jp.eqns)
+if '--graphs-only' in sys.argv: sys.exit(0)
 print('Maximum derivative errors:',errs,flush=True)
 def timing(f,*args,repeat=5):
     f(*args).block_until_ready()

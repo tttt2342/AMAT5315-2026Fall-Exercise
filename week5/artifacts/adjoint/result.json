@@ -1,0 +1,35 @@
+{
+  "dt": 0.2,
+  "dx": 1.0,
+  "mode": "adjoint",
+  "nx": 41,
+  "nz": 41,
+  "receivers": 14,
+  "shots": 3,
+  "statistics": {
+    "checkpoints": null,
+    "peak_saved_bytes": 6481936,
+    "peak_saved_states": 241,
+    "per_shot": [
+      {
+        "peak_saved_states": 241,
+        "reverse_calls": 240,
+        "scheduler_forward_calls": 240
+      },
+      {
+        "peak_saved_states": 241,
+        "reverse_calls": 240,
+        "scheduler_forward_calls": 240
+      },
+      {
+        "peak_saved_states": 241,
+        "reverse_calls": 240,
+        "scheduler_forward_calls": 240
+      }
+    ],
+    "reverse_calls": 720,
+    "scheduler_forward_calls": 720,
+    "storage": "full"
+  },
+  "steps": 240
+}
