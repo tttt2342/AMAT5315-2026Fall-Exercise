@@ -1,0 +1,38 @@
+{
+  "traces_l2": 11.574769503614014,
+  "maxima": [
+    {
+      "shot": 0,
+      "trace_index": 83,
+      "receiver_index": 1,
+      "receiver": [
+        9,
+        8
+      ],
+      "peak": 0.6080951434274398
+    },
+    {
+      "shot": 1,
+      "trace_index": 83,
+      "receiver_index": 6,
+      "receiver": [
+        19,
+        8
+      ],
+      "peak": 0.5927139734671295
+    },
+    {
+      "shot": 2,
+      "trace_index": 83,
+      "receiver_index": 12,
+      "receiver": [
+        31,
+        8
+      ],
+      "peak": 0.6080951434274398
+    }
+  ],
+  "step150_direct_max": 0.2552434206008911,
+  "step150_echo_max": 0.006224703975021839,
+  "echo_ratio": 0.02438732422888279
+}

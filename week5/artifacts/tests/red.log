@@ -1,0 +1,47 @@
+     Locking 28 packages to highest Rust 1.100.0-nightly compatible versions
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling serde_core v1.0.229
+   Compiling utf8parse v0.2.2
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling colorchoice v1.0.5
+   Compiling anstyle-query v1.1.5
+   Compiling anstyle v1.0.14
+   Compiling zmij v1.0.23
+   Compiling anstyle-parse v1.0.0
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.151
+   Compiling heck v0.5.0
+   Compiling strsim v0.11.1
+   Compiling clap_lex v1.1.1
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling anstream v1.0.0
+   Compiling clap_builder v4.6.7
+   Compiling syn v3.0.6
+   Compiling clap_derive v4.6.7
+   Compiling serde_derive v1.0.229
+   Compiling clap v4.6.7
+   Compiling seismic v0.1.0 (/Users/tianyizhang/AMAT5315/AMAT5315-2026Fall-Exercise/week5/seismic)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.02s
+     Running tests/physics.rs (seismic/target/debug/build/seismic/b6a2121c24c275f5/out/physics-b6a2121c24c275f5)
+
+running 1 test
+test enzyme_cube_and_step_derivatives ... FAILED
+
+failures:
+
+---- enzyme_cube_and_step_derivatives stdout ----
+
+thread 'enzyme_cube_and_step_derivatives' (22185574) panicked at tests/physics.rs:6:5:
+assertion failed: String::from_utf8(output.stdout).unwrap().contains("Enzyme cube and timestep PASS")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    enzyme_cube_and_step_derivatives
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+error: test failed, to rerun pass `--test physics`
