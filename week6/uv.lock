@@ -10,6 +10,7 @@ dependencies = [
     { name = "jax" },
     { name = "matplotlib" },
     { name = "numpy" },
+    { name = "scipy" },
 ]
 
 [package.metadata]
@@ -17,6 +18,7 @@ requires-dist = [
     { name = "jax" },
     { name = "matplotlib" },
     { name = "numpy" },
+    { name = "scipy", specifier = ">=1.18.1" },
 ]
 
 [[package]]
