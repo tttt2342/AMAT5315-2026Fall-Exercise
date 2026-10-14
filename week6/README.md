@@ -29,7 +29,7 @@ uv run python -c 'import jax; print(jax.devices())'
 
 ## 当前状态
 
-已下载讲义并建立项目目录；尚未开始数据集分析或模型实验。
+全部四个必做部分及最终核验已完成；16张证据图、复现命令和中文解释见下文。可选 AIS/NLL 扩展未做。
 
 ## Part 1：数据集（已验证）
 
@@ -159,3 +159,83 @@ N=800、α=0.20 时测得0.01243，接近大 N 预测0.01267。N=100、α=0.10 �
 验证：`JAX_PLATFORMS=cpu uv run --locked python -m unittest discover -s scripts -p test_hopfield.py -v`。
 4项测试检查 Hebbian 耦合/能量恒等式、与独立 NumPy 异步轨迹逐项一致且每次翻转降能、零场保留自旋、完整预算与交叉点。
 完整运行还检查每个最终状态都没有可下降能量的单自旋翻转。
+
+## Part 4：现代 Hopfield 与 attention（已验证）
+
+运行及本节四张图的生成命令：`JAX_PLATFORMS=cpu uv run --locked python scripts/modern.py`。
+
+按原存储顺序取前 P 张 MNIST 训练图片，二值化为 ±1；P=3,10,30,100,300,1000。
+每个 P 查询100次，目标索引为 `arange(100)%P`；仅把下半图替换为公平随机自旋，种子6640。
+同一 P 的经典召回和全部 β 使用完全相同的查询，现代召回只更新一步，不钳制或反复迭代。
+β=0.001,0.003,0.01,0.03,0.1,0.3,1。经典召回沿用 Part 3 的异步零温更新、零对角线和无翻转终止条件。
+
+把图像按列排成 X，现代更新是 `x_new=X softmax(β Xᵀx)`。
+代码按行存储模式，因此批量形式为 `softmax(β Q X) Xᵀ`。
+JAX attention 使用 query=x、key=value=存储模式，并显式设 `scale=beta`，不使用默认 `1/sqrt(784)`。
+对应现代能量为 `E(x)=-(1/β)logsumexp(β Xᵀx)+xᵀx/2+const`；完整网格的每次现代更新均检查能量不增。
+
+![一个查询的attention权重](evidence/attention_weights.png)
+
+P=100、第一个查询在 β=0.003,0.03,0.3 时，目标模式权重分别约0.01467、0.26336、1.00000。
+整个实验网格中，直接现代更新与 JAX attention 输出的最大绝对差为 **0.0**（float32，同一后端的运算结果恰好一致），小于要求的10⁻⁵。
+另用独立 float64 NumPy softmax 与矩阵乘法验证全部输出；允许10⁻⁵的 float32 累加误差，避免把同一 JAX 运算路径的相等当成唯一验证。
+
+![温度改变检索结果](evidence/modern_beta_gallery.png)
+
+图中展示 P=100 的前五个查询。小 β 的权重接近均匀，输出是类似的模糊平均数字；β=0.03 开始显露目标形状，β≥0.1 的这些示例已很接近存储目标。
+保留取 sign 前的实数结果，因而可以看到模糊平均，而不是只看阈值化图片。经典召回在这些查询下都返回相同的稀疏笔画片段。
+
+![P=100下目标、查询与两类召回](evidence/modern_retrieval.png)
+
+![全部存储数量与温度的成功率](evidence/modern_success.png)
+
+成功需要同时满足：输出取符号后与目标 overlap≥0.95，且目标是所有存储模式中最近的一个。
+零输出取 +1；若目标与其他模式并列最近，视为最近之一，另存并列数量。重叠阈值相当于784像素中至多19个错误。
+
+| P | 经典成功率 | 现代 β=0.1 | 现代 β=0.3 |
+|---:|---:|---:|---:|
+| 3 | 0% | 100% | 100% |
+| 10 | 0% | 100% | 100% |
+| 30 | 0% | 97% | 98% |
+| 100 | 0% | 100% | 100% |
+| 300 | 0% | 98% | 100% |
+| 1000 | 0% | 91% | 96% |
+
+β=0.3 在所有 P 上均达到要求的≥90%；经典成功率全部为0。随着 P 增加，部分上半图和随机下半图会使另一个存储数字更相似，增大 β 也未必改正这种目标识别歧义。
+P 很小时，小 β 也可能已足以区分目标，例如 P=3、β=0.01 在本次达到100%；温度效果还取决于候选数量和相似度间隔。
+
+MNIST 背景和笔画高度相关，不能套用 Part 3 的独立随机模式容量结论。P=100 时未损坏的存储图已有约11.75%的不稳定位。
+即使 P=3、α≈0.00383，经典召回也失败；共同背景形成强的偏向，驱动系统走向类似多数像素的公共状态。
+现代机制则用整张查询对模式的相似度产生 softmax 权重，较大 β 选择单个模式；这是 attention 的查询、键和值运算。
+Hopfield 此处取回的是存储过的图片，不能把它与 RBM 对未见测试图的补全泛化混为一谈。
+完整参数、各 β 成功率与一致性统计见 [modern.json](evidence/modern.json)，该网格本机计算约6.47秒（不含最后绘图）。
+
+验证：`JAX_PLATFORMS=cpu uv run --locked python -m unittest discover -s scripts -p test_modern.py -v`。
+3项测试验证独立 NumPy attention/能量、成功判据确实包含最近目标限制、全部实验网格与讲义验收标准。
+
+## 最终核验与复现
+
+未知目标分布 `p_data` 表示真实世界中数字/物体图像的概率规律，我们只能通过有限样本认识它。
+Part 1 的经验分布给每条下载记录相同权重1/N，标签频率是这份有限数据的统计，不是未知总体概率本身。
+Part 2 的拟合模型 `p_theta(v)=exp(-F_theta(v))/Z_theta` 是参数化概率分布，既不等同于数据列表，也不会因好的一步重构就自动等于目标分布。
+Gibbs 是从给定模型取样的算法；步数、起点和混合决定有限轨迹离平衡分布有多远。图中的重构、从零生成与钳制补全分别使用完整输入、无观测和部分观测，因此检验不同能力。
+CD 在似然梯度的负相近似平衡期望；钳制上半图使同一采样机制改为条件推断。Part 3 的串扰图解释随机存储为何出现容量极限；Part 4 的权重和成功率图验证 softmax attention 如何由平均切换为模式检索。
+
+一次完整复现（均在 `week6/` 下）：
+
+```sh
+uv sync --locked
+export JAX_PLATFORMS=cpu
+uv run --locked python scripts/data.py
+uv run --locked python scripts/rbm.py all
+uv run --locked python scripts/hopfield.py
+uv run --locked python scripts/modern.py
+uv run --locked python scripts/verify.py
+```
+
+最后一条命令执行全部11项测试并生成 [verification.json](evidence/verification.json)，记录环境版本、CPU后端、验收数值与16张证据图的清单。
+环境由 Python 3.12 和 `uv.lock` 锁定。本次运行版本以核验文件为准；随机种子和数组精度已固定，但不同硬件/库版本的随机轨迹和浮点舍入仍可能略有差异。
+全部 raw 数组、逐 epoch 检查点与完整日志位于 `artifacts/`，数据下载在 `inputs/`；二者及 `.venv/` 均被 Git 排除。
+提交内容包括源码、环境锁文件、讲义、中文解释与 `evidence/` 图和精简核验摘要。
+
+已完成所有非 bonus 部分；可选 AIS/NLL 扩展未做。Week 7 可直接使用本 README 和证据图展示；讲义说明本周无需另行提交作业。

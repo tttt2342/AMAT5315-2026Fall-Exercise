@@ -1,0 +1,68 @@
+{
+  "verified_utc": "2026-10-14T11:25:51.662275+00:00",
+  "tests_run": 11,
+  "tests_passed": true,
+  "environment": {
+    "python": "3.12.15",
+    "platform": "macOS-26.1-arm64-arm-64bit",
+    "machine": "arm64",
+    "jax": "0.11.2",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "backend": "cpu",
+    "devices": [
+      "cpu:0"
+    ]
+  },
+  "rbm_final_reconstruction": {
+    "1": 0.04587850719690323,
+    "10": 0.047771841287612915
+  },
+  "completion_advantage": {
+    "1": 0.15928930044174194,
+    "10": 0.24992936849594116
+  },
+  "capacity_crossings": {
+    "100": 0.18490514905149052,
+    "200": 0.1731902294596595,
+    "400": 0.15636320531057374,
+    "800": 0.14719871451526514
+  },
+  "modern_beta_03_success": {
+    "3": 1.0,
+    "10": 1.0,
+    "30": 0.98,
+    "100": 1.0,
+    "300": 1.0,
+    "1000": 0.96
+  },
+  "classical_success": {
+    "3": 0.0,
+    "10": 0.0,
+    "30": 0.0,
+    "100": 0.0,
+    "300": 0.0,
+    "1000": 0.0
+  },
+  "attention_max_difference": 0.0,
+  "numpy_float64_attention_max_difference": 8.13752804196266e-06,
+  "figure_count": 16,
+  "figures": [
+    "attention_weights.png",
+    "binary_spins.png",
+    "cd10_completion.png",
+    "cd10_generation.png",
+    "cd1_completion.png",
+    "cd1_generation.png",
+    "cifar10_distribution.png",
+    "completion_overlap.png",
+    "hopfield_capacity.png",
+    "hopfield_crosstalk.png",
+    "mnist_distribution.png",
+    "modern_beta_gallery.png",
+    "modern_retrieval.png",
+    "modern_success.png",
+    "rbm_structure.png",
+    "rbm_training.png"
+  ]
+}

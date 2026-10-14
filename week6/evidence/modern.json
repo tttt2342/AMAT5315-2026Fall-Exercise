@@ -1,0 +1,224 @@
+{
+  "seed": 6640,
+  "P": [
+    3,
+    10,
+    30,
+    100,
+    300,
+    1000
+  ],
+  "beta": [
+    0.001,
+    0.003,
+    0.01,
+    0.03,
+    0.1,
+    0.3,
+    1.0
+  ],
+  "queries": 100,
+  "models": {
+    "3": {
+      "classical": 0.0,
+      "classical_overlap": 0.8117346167564392,
+      "modern": [
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "attention_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "nearest_ties": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "max_sweeps": 2,
+      "stored_unstable": 0.09438775479793549
+    },
+    "10": {
+      "classical": 0.0,
+      "classical_overlap": 0.7834183573722839,
+      "modern": [
+        0.0,
+        0.0,
+        0.1,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "attention_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "nearest_ties": [
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "max_sweeps": 5,
+      "stored_unstable": 0.08469387143850327
+    },
+    "30": {
+      "classical": 0.0,
+      "classical_overlap": 0.7640050649642944,
+      "modern": [
+        0.0,
+        0.0,
+        0.0,
+        0.86,
+        0.97,
+        0.98,
+        0.98
+      ],
+      "attention_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "nearest_ties": [
+        4,
+        4,
+        7,
+        2,
+        0,
+        0,
+        0
+      ],
+      "max_sweeps": 3,
+      "stored_unstable": 0.1110544204711914
+    },
+    "100": {
+      "classical": 0.0,
+      "classical_overlap": 0.7491582632064819,
+      "modern": [
+        0.0,
+        0.0,
+        0.0,
+        0.18,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "attention_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "nearest_ties": [
+        57,
+        21,
+        5,
+        3,
+        0,
+        0,
+        0
+      ],
+      "max_sweeps": 4,
+      "stored_unstable": 0.11746173352003098
+    },
+    "300": {
+      "classical": 0.0,
+      "classical_overlap": 0.7452806234359741,
+      "modern": [
+        0.0,
+        0.0,
+        0.0,
+        0.02,
+        0.98,
+        1.0,
+        1.0
+      ],
+      "attention_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "nearest_ties": [
+        0,
+        5,
+        16,
+        11,
+        0,
+        0,
+        0
+      ],
+      "max_sweeps": 4,
+      "stored_unstable": 0.12243197858333588
+    },
+    "1000": {
+      "classical": 0.0,
+      "classical_overlap": 0.7457908391952515,
+      "modern": [
+        0.0,
+        0.0,
+        0.0,
+        0.02,
+        0.91,
+        0.96,
+        0.96
+      ],
+      "attention_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "nearest_ties": [
+        6,
+        16,
+        7,
+        16,
+        3,
+        0,
+        0
+      ],
+      "max_sweeps": 4,
+      "stored_unstable": 0.12402933090925217
+    }
+  },
+  "max_attention_difference": 0.0,
+  "tie_rule": "target may tie for nearest; zero output maps to +1",
+  "seconds": 6.4676155409999865
+}
