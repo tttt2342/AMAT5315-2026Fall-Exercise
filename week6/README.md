@@ -56,3 +56,69 @@ CIFAR-10 原始训练集 50,000 张、测试集 10,000 张；每张是 32×32×3
 - https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/cifar-10-binary.tar.gz
 
 MNIST 是手写数字数据；CIFAR-10 是十类物体照片数据。这里按讲义使用 CVDF 和华为云镜像；下载地址和文件哈希共同标识实际使用的文件。
+
+## Part 2：RBM（已验证）
+
+完整运行：`JAX_PLATFORMS=cpu uv run --locked python scripts/rbm.py all`。
+仅重做采样与绘图：`JAX_PLATFORMS=cpu uv run --locked python scripts/rbm.py evaluate`，需要本地保存的两个 epoch20 检查点。
+单独训练使用 `train`。下列所有 Part 2 图由 `all` 生成。
+
+二值化规则为像素 ≥128 时 v=1，否则 v=0；自旋 s=2v−1，白色墨迹为 +1、黑色背景为 −1。
+
+![前16张训练图的自旋表示](evidence/binary_spins.png)
+
+![单图自旋与RBM结构](evidence/rbm_structure.png)
+
+模型有 784 个可见位和 128 个隐藏位。图中仅画部分节点，所有 W 都跨层连接，没有层内耦合。
+能量 `E(v,h)=-aᵀv-bᵀh-vᵀWh`；对隐藏位求和后，
+`F(v)=-aᵀv-Σⱼ softplus(bⱼ+(vᵀW)ⱼ)`。
+条件分布分别为 `p(h=1|v)=sigmoid(vW+b)` 和 `p(v=1|h)=sigmoid(hWᵀ+a)`；一个 Gibbs 步包含两次实际 Bernoulli 抽样。
+
+训练严格使用 [rbm.toml](rbm.toml)：全部 60,000 张、20 epochs、batch=100、float32、SGD 学习率 0.1、无 momentum/weight decay。
+初始化权重标准差 0.01，隐藏偏置 0，可见偏置为训练像素频率 clip 到 [0.01,0.99] 后的 logit。
+初始化种子 6601，训练/打乱种子 6602，评估种子 6606。CD-1、CD-10 从同一参数出发，每 epoch 数据顺序相同（SHA-256 已比对）。
+每次训练更新求 `mean(F(v0)-F(stop_gradient(vk)))` 的参数梯度；负相用从训练图起步的 k 步端点代替模型平衡分布，因而近似似然梯度。
+
+![训练诊断](evidence/rbm_training.png)
+
+| 模型 | 初始重构 Hamming | 第20 epoch | CPU训练秒数 |
+|---|---:|---:|---:|
+| CD-1 | 0.17084 | 0.04588 | 9.56 |
+| CD-10 | 0.17084 | 0.04777 | 48.20 |
+
+误差使用存储顺序中前 64 张测试图、固定 Gibbs 随机数及抽样后的二值像素，两个结果均低于初始值的一半。
+CD surrogate 是更新前各 batch 的均值，本次整体趋向较不负的数值；它不是 NLL，也不必下降。
+NLL 还包含随参数变化的 `log Z`，不能省略后称为似然曲线。一步重构保留了输入信息，既不能证明良好的从零生成，也不能证明 NLL 降低。
+详细曲线和参数见 [rbm_training.json](evidence/rbm_training.json)。
+
+![CD-1重构与从零生成](evidence/cd1_generation.png)
+
+![CD-10重构与从零生成](evidence/cd10_generation.png)
+
+两模型冻结参数，从相同 64 组公平随机二值配置开始；起点种子 6605，生成 Gibbs 流种子 6705。
+保存 0、1、10、100、1000 步，图中固定展示前六条链，不挑选结果。一步重构通常能看出原来的数字；生成则由散点逐渐形成块、环和笔画。
+1000 步仍常有变形图形和重复的环，CD-10 也没有普遍变成清晰数字。两模型的链表现各有差异，不能依据个别图像宣称 CD-10 的生成一定更好。
+增加训练 k 改变的是梯度近似；增加生成长度改变的是固定模型的链演化。更长采样不能修复学错的分布，形成结构也不等于充分混合。
+
+![CD-1补全](evidence/cd1_completion.png)
+
+![CD-10补全](evidence/cd10_completion.png)
+
+补全取前 64 张测试图，每图每模型 8 条链、种子 6607，保存同样的采样步数。上方 14 行逐步钳制不变；下半图使用相同随机起点。
+错误上半图取这 64 张中向后循环遇到的第一张不同标签图片；两种条件都与原目标的真实下半图比较。
+图中每个模型展示前四张图的前两条链：7 能续出向下的笔画，2 出现不同的弯曲补全，0 能形成环；1 的下半图仍可能空白，CD-10 也并非每条链都成功。
+
+![下半图墨迹重叠](evidence/completion_overlap.png)
+
+| 模型 | 1000步正确上半图 Dice ± SE | 错误上半图 Dice ± SE | 优势（要求≥0.1） |
+|---|---:|---:|---:|
+| CD-1 | 0.3752 ± 0.0236 | 0.2159 ± 0.0145 | 0.1593 |
+| CD-10 | 0.5007 ± 0.0184 | 0.2508 ± 0.0149 | 0.2499 |
+
+Dice 为 `2|A∩B|/(|A|+|B|)`，只计算缺失下半图。每图先平均8条链，再对64张图计算标准误，避免把同一图的链当成独立数字。
+正确条件的平均 Dice 随步数增加；错误条件没有这种增长。错误条件非零是因为不同数字的中央笔画仍会重叠。
+CD-10 的补全明显优于 CD-1，尽管一步重构误差接近。钳制把无条件生成变为对 `p(v_missing|v_observed)` 的条件推断；这不需要重新训练。
+统计与错误图索引见 [rbm_evaluation.json](evidence/rbm_evaluation.json)。
+
+验证命令：`JAX_PLATFORMS=cpu uv run --locked python -m unittest discover -s scripts -p test_rbm.py -v`。
+4项测试通过：小模型枚举隐藏态验证自由能、NumPy 相关性公式验证 CD 梯度及 stop-gradient、抽样边缘概率检查、完整实验的重构/钳制/配对起点/补全验收。

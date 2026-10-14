@@ -1,0 +1,31 @@
+[training]
+images = 60_000
+epochs = 20
+batch_size = 100
+shuffle_each_epoch = true
+optimizer = "SGD"
+learning_rate = 0.1
+momentum = 0.0
+weight_decay = 0.0
+precision = "float32"
+seed = 6602
+
+[initialization]
+weight_std = 0.01
+hidden_bias = 0.0
+visible_bias = "logit(clipped training pixel frequency)"
+pixel_frequency_clip = [0.01, 0.99]
+seed = 6601
+
+[evaluation]
+test_images = 64
+seed = 6606
+reconstruction_at = "initialization and each epoch"
+surrogate = "epoch mean of batch surrogates before updates"
+
+[completion]
+test_images = 64
+chains = 8
+steps = [1, 10, 100, 1000]
+seed = 6607
+wrong_upper = "next evaluation image with a different label, wrapping within the 64 images"
