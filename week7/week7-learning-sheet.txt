@@ -1,0 +1,673 @@
+Week 7: Diffusion and flow matching
+Jin-Guo Liu, Xi-Wei Pan
+Abstract: We learn to generate data from Gaussian noise, starting with four groups of points, called clusters, whose 
+distribution we can check exactly. We train a noise predictor, compare sampling methods, then use a downloaded 
+predictor to generate photographs and fill missing pixels.
+Diffusion models
+Generating data from Gaussian noise.  Week 6 generated samples from an energy model without computing its 
+normalizer 𝑍. This week learns to transform fresh random numbers into data. A generative model learns a rule for 
+drawing new examples; drawing an example is sampling, and the result is a sample. We use a neural network, a function 
+with adjustable parameters. Training fits those parameters to examples.
+Gaussian noise as the starting distribution. We start generation with independent draws from the standard Gaussian 
+𝒩︀(0,1), centred at zero with variance one: its average squared distance from zero is one. We draw coordinates 
+independently, so knowing one draw does not change another’s probabilities. Added random disturbances are noise a 
+clean sample 𝑥0 is a data sample before this noise is added. Its coordinates may store a point’s position or an image’s 
+pixel colours.
+Forward and reverse diffusion. The fixed process called forward diffusion repeatedly shrinks 𝑥0 toward zero and 
+adds Gaussian noise. Write the current state as 𝑥𝑡 after 𝑡 steps. The step index is the noise level, also called the diffusion 
+level here the final level is 𝑇 = 1000. In Figure 1, read the top row left to right to see data become noise. Generation 
+follows the reverse process, reading the lower rows right to left.
+Figure 1: The forward and reverse processes. Top: forward diffusion turns four clusters into an approximately Gaussian cloud. Middle: a 
+learned reverse process turns fresh Gaussian noise back into four clusters. Bottom: a downloaded network guides the reverse process for a 
+32× 32 photograph. Columns use the noise levels defined above. All panels are reference runs from Parts 1 and 4.
+Generation by small reverse steps. Starting from fresh Gaussian noise at 𝑡= 𝑇, a learned rule repeatedly moves to 
+a lower level until it reaches 𝑡= 0. The positions form a path or trajectory; the first and last are its endpoints. The aim 
+1
+
+is to recover the data distribution: which outcomes are common and which are rare. It does not recover the particular 
+sample that began a forward run. Estimating a clean sample from a noisy one is denoising.
+Noise prediction and DDPM sampling. Add noise to a clean sample and train a noise predictor to estimate the added 
+noise. The known answer is the training target; fitting numerical targets is regression. A denoising diffusion probabilistic 
+model (DDPM) uses the prediction to choose a reverse step and adds fresh randomness. This generation rule is the 
+sampler.
+Two routes to fewer sampling steps. Each reverse step evaluates a network. Part 2 reuses the noise predictor with 
+a denoising diffusion implicit model (DDIM). Its deterministic update makes no random choice after the starting draw. 
+DDPM’s random steps are called stochastic. Part 3 trains a different network by flow matching: it predicts a point’s 
+velocity, how fast and in which direction the point moves. We compare the number of steps these samplers need to 
+recover the four clusters.
+regression
+regression
+DDPM
+Make training data Learn a network Generate samples
+Add noise to
+cluster points
+Noise predictor
+Part 1
+Random reverse steps
+(DDPM) Part 1
+Deterministic path
+(DDIM) Part 2
+Join points to noise
+by straight lines
+Velocity network
+Part 3
+Follow the velocity
+Part 3
+Downloaded noise
+predictor Part 4
+New photographs
+Part 4
+Fill in missing pixels
+Part 5
+Figure 2: Which network each Part trains or reuses, and which sampler uses it. Parts 1 to 3 use the four-cluster test distribution; Parts 4 and 
+5 use photographs.
+Resources:
+• Niels Rogge and Kashif Rasul, The Annotated Diffusion Model. Parts 1 and 4 follow its noising, noise-prediction and 
+reverse-sampling sequence. Our implementation uses JAX.
+• Ho, Jain and Abbeel, Denoising Diffusion Probabilistic Models. Algorithms 1–2 are the training and sampling loops of 
+Parts 1 and 4.
+Part 1: Diffusion models on a Gaussian mixture
+Goal: train a noise predictor and use it to generate new samples. Check that the samples form the four target clusters, 
+with the right fraction of points in each cluster and the right centres and widths.
+1 DO
+Work in week7/  inside your existing exercise repository. Your laptop’s central processing unit (CPU) is the baseline. 
+Send the prompts, then read UNDERSTAND while your agent works.
+Work in week7/ using uv, with CPU as the default. Save figures in evidence/ and raw 
+runs with settings in artifacts/. Keep downloads and raw runs out of git. Commit after 
+each task; ask about uncertainties instead of guessing.
+Build forward diffusion in JAX for an equally weighted Gaussian mixture with centres 
+(3,0), (0,3), (-3,0), (0,-3) and covariance 0.09 times the identity. Use 1000 steps 
+with per-step noise variance beta_t increasing linearly from 0.0001 to 0.02, where t 
+is the diffusion level. Implement DDPM sampling with variance beta_t, no clipping and 
+no added noise in the final step.
+2
+
+Train a small network to predict the added noise. Make the predictor time-conditioned. 
+Minimize mean squared noise-prediction error over uniformly sampled noise levels. 
+Decay the learning rate to zero by the end of training. Record training settings and 
+loss history. Retain the model at 10 training stages, including initialization and the 
+final model.
+For reference, 25000 updates with 512 fresh points per update take about one minute on a laptop CPU.
+2 UNDERSTAND
+Drawing the four-cluster target. Our sample is a pair of real numbers, a vector 𝑥 ∈ ℝ2. Choosing among Gaussian 
+clusters gives a Gaussian mixture. Each cluster is a component. Our four centres are
+𝜇1 = (3,0), 𝜇2 = (0,3), 𝜇3 = (−3,0), 𝜇4 = (0,−3). (1)
+Give each component index 𝑘 ∈ {1,2,3,4} equal probability and draw independent Gaussian numbers 𝑧1,𝑧2, indepen-
+dently of 𝑘. Then
+𝑥0 = 𝜇𝑘 + 0.3(𝑧1,𝑧2), 𝑧1,𝑧2 ∼ 𝒩︀(0,1) independently. (2)
+These are exact samples, drawn directly from the prescribed target. Parts 1 to 3 use them to train and to check learned 
+samplers.
+Describing the target with a density and averages.  A probability density 𝑝(𝑥) integrates to a region’s probability 
+and to one over the whole space. Its value at one point is not a probability. An expected value is a density-weighted 
+average:
+𝔼[ℎ(𝑥)] = ∫ ℎ(𝑥)𝑝(𝑥)d𝑥. (3)
+A sample average estimates this integral. The mean 𝜇 = 𝔼[𝑥] averages each coordinate separately.
+Covariance and cluster width. The covariance matrix records the spread:
+Σ𝑖𝑗 = 𝔼[(𝑥𝑖 − 𝜇𝑖)(𝑥𝑗 − 𝜇𝑗)]. (4)
+Its diagonal entries are coordinate variances; off-diagonal entries describe how coordinates vary together. The square 
+root of a variance is the standard deviation. Each component above has independent coordinates of standard deviation 
+𝜎 = 0.3, hence covariance 0.09𝐼. The identity matrix 𝐼 has ones on its diagonal and zeros elsewhere.
+The target density. Write 𝒩︀(𝑥; 𝜇,Σ) for the Gaussian density with mean 𝜇 and covariance Σ. The recipe gives
+𝑝data(𝑥)= 1
+4 ∑
+4
+𝑘=1
+𝒩︀(𝑥; 𝜇𝑘,0.09𝐼). (5)
+Its four separated regions of high density are the target’s modes. The notation 𝑧 ∼ 𝒩︀(0,𝐼) will mean a vector of 
+independent standard Gaussian draws, each with mean zero and variance one.
+Checking cluster populations, centres and widths.  Assign generated points to their nearest target centre. Each 
+group’s population, its fraction of all points, should be near 0.25. Its mean should match 𝜇𝑘, and its per-coordinate 
+spread, the standard deviation in each coordinate, should be near 0.3. Checking all three detects missing, misplaced and 
+broadened clusters.
+Adding noise with the prescribed variance schedule.  The forward update shrinks a point and adds independent 
+noise. The diffusion level runs through 𝑡∈ {1,…,𝑇}, with 𝑇 = 1000. Let 𝛽𝑡 be the variance of the noise added to each 
+coordinate in step 𝑡, and set 𝛼𝑡 = 1− 𝛽𝑡. The update is
+𝑥𝑡 = √𝛼𝑡𝑥𝑡−1 + √𝛽𝑡𝑧, 𝑧 ∼ 𝒩︀(0,𝐼). (6)
+The variance schedule 𝛽1,…,𝛽𝑇  grows linearly from 𝛽1 = 10−4 to 𝛽𝑇 = 0.02, so early steps add less noise than later 
+ones. The shrinkage multiplies the previous variance by 𝛼𝑡; independent noise adds 𝛽𝑡. Since 𝛼𝑡 + 𝛽𝑡 = 1, variance one 
+stays one.
+3
+
+Direct noising to any level. To construct a training example at level 𝑡, combine the preceding Gaussian disturbances 
+into one draw. Define 𝛼𝑡 = ∏𝑡
+𝑠=1 𝛼𝑠, with 𝛼0 = 1. The result of the 𝑡 steps has the same distribution as
+𝑥𝑡 = √𝛼𝑡𝑥0 + √1− 𝛼𝑡𝜀, 𝜀 ∼ 𝒩︀(0,𝐼). (7)
+Here 𝜀 is the known noise for this training example. At 𝑡= 1000, 𝛼𝑡 ≈ 4 × 10−5, so the clean point contributes very 
+little and the state is approximately standard Gaussian.
+Predicting noise from the point and its level. The input is (𝑥𝑡,𝑡) and the output 𝜀𝜃(𝑥𝑡,𝑡) has two coordinates, one 
+estimated noise value per coordinate of the point. The parameters are 𝜃. Supplying the noise level makes the network 
+time-conditioned the index 𝑡 is also called time. The clean point 𝑥0 is unavailable during generation and is never an 
+input.
+The predictor’s architecture and weights. The reference network computes fixed sine and cosine functions of the 
+level 𝑡. Collect these time features in a vector 𝑟(𝑡) and append them to the two coordinates of 𝑥𝑡, giving ℎ0 = [𝑥𝑡; 𝑟(𝑡)]. 
+The semicolon means joining the two lists of numbers. Three hidden layers , intermediate vectors ℎ1,ℎ2,ℎ3, then 
+compute
+ℎ𝑙 = 𝜑(𝑊𝑙ℎ𝑙−1 + 𝑏𝑙), 𝑙 = 1,2,3, 𝜀𝜃(𝑥𝑡,𝑡)= 𝑊4ℎ3 + 𝑏4. (8)
+Each matrix 𝑊𝑙 maps the preceding vector to the next layer’s size, and 𝑏𝑙 is an added vector, called a bias. Every output 
+of this matrix multiplication can depend on every input, so the layer is fully connected. The function 𝜑(𝑢)= 𝑢
+1+ exp(−𝑢), 
+applied to each coordinate, is the activation; its nonlinear response prevents the layers from collapsing into one matrix 
+multiplication. The final layer returns two noise coordinates without an activation.
+This arrangement is the network’s architecture. Its adjustable weights, or parameters, are 𝜃 = {𝑊𝑙,𝑏𝑙}4
+𝑙=1. Initialization 
+assigns their starting values; the reference uses random matrices and zero biases. Training changes 𝜃 while keeping the 
+time features and architecture fixed.
+Clean samples 𝑥0 Noisy samples 𝑥𝑡 Nearly Gaussian 𝑥𝑇
+≈ 𝒩︀(0,𝐼)
+Shrink +
+add noise
+Shrink +
+add noise
+𝑥𝑡 = √𝛼𝑡𝑥0 + √1− 𝛼𝑡𝜀
+̂𝜀 = 𝜀𝜃(𝑥𝑡,𝑡)
+Figure 3: Training inputs at three noise levels, using the same 300 reference samples. The arrow follows one sample. Teal constructs the 
+noisy input from known noise; blue predicts that noise from the input and its level.
+The noise-prediction loss. To judge a prediction, subtract the known noise and square each coordinate’s error. For 
+a vector 𝑤, its length, or norm, is ‖𝑤‖= √∑𝑖𝑤2
+𝑖. Thus ‖𝑤‖2 is the sum of its squared coordinates. The mean squared 
+noise-prediction error is
+ℒ︀noise(𝜃)= 𝔼𝑥0,𝑡,𝜀[ 1
+2‖𝜀𝜃(𝑥𝑡,𝑡)− 𝜀‖2]. (9)
+The expectation averages over clean points, noise levels and Gaussian noise. We draw levels uniformly, giving every 
+level the same probability. The factor 1
+2 averages over the two coordinates. This quantity is the training loss, the number 
+we try to reduce.
+Updating the weights during training. A batch is a group of training examples. Its average loss is ̂ℒ︀. The gradient 
+∇𝜃 ̂ℒ︀ collects the derivatives with respect to the weights; JAX computes it by automatic differentiation, as in Week 5. 
+An optimizer uses this gradient to update the weights. For example, gradient descent uses 𝜃 ← 𝜃 − 𝜂𝑗∇𝜃 ̂ℒ︀, where the 
+learning rate 𝜂𝑗 sets the step size at update 𝑗. Decaying 𝜂𝑗 toward zero makes late updates smaller. A saved set of weights 
+is a training stage.
+Algorithm 1. Train the noise predictor
+4
+
+Input: Initial weights 𝜃; batch size 𝐵; 𝐽 updates with learning rates 𝜂𝑗; optimizer; data distribution 𝑝data; noise 
+schedule 𝛼𝑡.
+Output: Trained weights 𝜃.
+1: for 𝑗 = 1,…,𝐽 do
+2: for 𝑖= 1,…,𝐵 do
+3: Draw independently 𝑥(𝑖)
+0 ∼ 𝑝data, 𝑡𝑖 uniformly from 1,…,𝑇, and 𝜀(𝑖) ∼ 𝒩︀(0,𝐼).
+4: 𝑥(𝑖) ← √𝛼𝑡𝑖
+𝑥(𝑖)
+0 + √1− 𝛼𝑡𝑖
+𝜀(𝑖)
+5: end
+6: ̂ℒ︀noise ← 1
+2𝐵 ∑
+𝐵
+𝑖=1
+‖𝜀𝜃(𝑥(𝑖),𝑡𝑖)− 𝜀(𝑖)‖
+2
+7: Update 𝜃 using gradient ∇𝜃 ̂ℒ︀noise and learning rate 𝜂𝑗.
+8: end
+9: return 𝜃
+DDPM: generating samples by removing noise. Keep the trained network fixed. At each reverse step, its prediction 
+sets the mean 𝜇. Sample around that mean with variance 𝛽𝑡; the final step returns the mean without added noise.
+Algorithm 2. DDPM sampling
+Input: Fixed predictor 𝜀𝜃; schedule 𝛽𝑡, 𝛼𝑡 = 1− 𝛽𝑡, 𝛼𝑡 = ∏𝑡
+𝑗=1 𝛼𝑗, for 𝑡= 1,…,𝑇.
+Output: Generated sample 𝑥0.
+1: Draw 𝑥𝑇 ∼ 𝒩︀(0,𝐼).
+2: for 𝑡= 𝑇,𝑇 − 1,…,1 do
+3: ̂𝜀 ← 𝜀𝜃(𝑥𝑡,𝑡)
+4: 𝜇 ← 1√𝛼𝑡
+( 𝑥𝑡 − 𝛽𝑡
+√1− 𝛼𝑡
+̂𝜀)
+5: 𝑧 ← 0
+6: if 𝑡> 1 then
+7: Draw 𝑧 ∼ 𝒩︀(0,𝐼).
+8: end
+9: 𝑥𝑡−1 ← 𝜇 + √𝛽𝑡𝑧
+10: end
+11: return 𝑥0
+Conditional-mean prediction and the remaining training loss. The noisy point 𝑥𝑡 = (0,0) could have come from 
+any cluster. The predictor cannot identify which noise was added. A conditional density 𝑝(𝑢 | 𝑦) describes an unknown 
+𝑢 after observing 𝑦; the bar means “given”. Its probability-weighted average is the conditional mean, 𝔼[𝑢 | 𝑦]. For noise 
+prediction, 𝑢 = 𝜀 and 𝑦 = 𝑥𝑡, at a fixed 𝑡. At the origin, symmetry makes the mean noise zero.
+Let 𝑎 be any prediction made from 𝑦. Its average squared error separates into two terms:
+𝔼[‖𝑢− 𝑎‖2 | 𝑦] = 𝔼[‖𝑢− 𝔼[𝑢 | 𝑦]‖2 | 𝑦] + ‖𝔼[𝑢 | 𝑦]− 𝑎‖2. (10)
+The first is the uncertainty left after observing 𝑦. The second measures how far the prediction is from the conditional 
+mean. Only the second depends on 𝑎, so choosing 𝑎 = 𝔼[𝑢 | 𝑦] minimizes the error. Noise-prediction training therefore 
+aims at 𝔼[𝜀 | 𝑥𝑡] at each level. The first term can remain positive even for the best predictor. It explains why the training 
+loss need not reach zero.
+With this exact prediction, the sampler’s mean would be exact; a learned predictor approximates it. Treating the reverse 
+distribution as Gaussian around the mean is a separate approximation, justified by small steps.
+Why the mixture sampler must not clip to [−1, 1]. Replacing values below a lower bound by that bound, and 
+values above an upper bound by that bound, is clipping. Clipping to [−1,1] would exclude this mixture’s four centres, 
+so we omit it.
+KEY CONCEPTS
+• Target: equal cluster populations, prescribed centres and coordinate spread 0.3.
+• Forward diffusion: shrink and add Gaussian noise; the schedule sets its variance.
+• Learning: squared noise error trains a time-conditioned predictor toward the conditional mean.
+5
+
+• Generation: DDPM uses the fixed predictor for reverse steps, with no added noise at the last step.
+3 VERIFY
+(1) Forward diffusion turns four clusters into one Gaussian.
+Make a movie of forward diffusion showing how the modes merge. Follow the same 
+samples as the noise level increases, with a fixed coordinate scale. Print each 
+coordinate's mean and variance at t=1000.
+The centres move toward the origin while each cloud broadens; by 𝑡= 1000 the four groups are 
+indistinguishable. With at least 2000 samples, each coordinate’s mean should lie within 0.1 of zero and its 
+variance within 0.1 of one. Watch the reference forward process.
+Figure 4: The forward end state is approximately standard Gaussian. The reference follows the same 2000 points through forward 
+steps at six levels on one scale.
+(2) Training moves the generated endpoints onto the clusters.
+Make a movie of the 10 saved training stages. At each stage, show 10 DDPM 
+generation paths with the current predictor and the training-loss history so far. 
+Reuse the same initial Gaussian samples and reverse-step noise across stages.
+Each path runs from 𝑡= 1000 to 0 with fixed weights; the training stage changes the weights. Shared starts and 
+step noise isolate the effect of learning. At initialization the paths leave the plotted square, some reaching |𝑥| ≈
+1500; at the final stage all ten endpoints sit on the four clusters. In the reference most of the change happens in 
+the first few hundred of its 25000 updates, while the loss falls. The loss then levels off, near 0.25 in the reference, 
+rather than at zero. Part 1′s conditional-mean identity explains this remaining loss: the added noise is still 
+uncertain given the noisy point. Watch the reference training process.
+Figure 5: Endpoints move onto the four clusters as the loss falls. The same ten generation paths (white starts, coloured ends, dashed 
+circles of radius 2𝜎 around the centres) with the predictor saved at four of its ten training stages; dotted lines mark those stages on 
+the loss history.
+(3) Generated samples recover the cluster populations, centres and widths.
+Generate 2000 samples with the trained predictor and 1000 DDPM steps. Make a movie 
+of the reverse process and compare the final distribution with the target. Plot the 
+samples and measure each mode's centre, population and per-coordinate spread.
+6
+
+Assign each generated point to its nearest target centre. Your populations should lie within 0.04 of 0.25, your 
+spreads within 0.03 of 0.30 and your centres within 0.05 of the targets. The reference gives populations from 
+0.245 to 0.262 and spreads from 0.29 to 0.30. All three measurements are needed: correct populations can still 
+hide shifted or broadened clusters. Watch the reference generation process.
+Figure 6: Generated samples recover the target’s centres, equal populations and spread. The reference run’s samples are plotted beside 
+exact target samples.
+Part 2: Deterministic sampling with DDIM
+Goal: replace DDPM’s random reverse step with a deterministic update that reuses the trained noise predictor and 
+can jump between selected noise levels. Check that repeated runs from one starting noise agree exactly, and that the 
+generated points still recover the four clusters.
+1 DO
+Implement deterministic DDIM sampling with the trained noise predictor over a 
+selectable subset of noise levels. Also support the mixture's exact conditional-mean 
+noise prediction for comparison.
+2 UNDERSTAND
+The deterministic DDIM update.  Let 𝑡′ < 𝑡 be the next level visited. Subtract the predicted noise and undo the 
+shrinkage in Equation 7 to estimate the clean point ̂𝑥0. Combine this estimate with the predicted noise in the proportions 
+for 𝑡′. The list of visited levels is the grid; fewer levels mean fewer network evaluations.
+Algorithm 3. Deterministic DDIM sampling
+Input: Fixed predictor 𝜀𝜃; schedule 𝛼𝑡 with 𝛼0 = 1; decreasing levels 𝑇 = 𝑡0 > 𝑡1 > … > 𝑡𝑆 = 0.
+Output: Generated sample 𝑥0.
+1: Draw 𝑥𝑇 ∼ 𝒩︀(0,𝐼).
+2: for 𝑘 = 0,…,𝑆 − 1 do
+3: Set 𝑡= 𝑡𝑘 and 𝑡′ = 𝑡𝑘+1.
+4: ̂𝜀 ← 𝜀𝜃(𝑥𝑡,𝑡)
+5: ̂𝑥0 ← 𝑥𝑡 − √1− 𝛼𝑡̂𝜀
+√𝛼𝑡
+6: 𝑥𝑡′ ← √𝛼𝑡′ ̂𝑥0 + √1− 𝛼𝑡′̂𝜀
+7: end
+8: return 𝑥0
+DDIM’s coefficients differ from DDPM’s: deleting DDPM’s random term alone does not give this update.
+DDIM’s clean estimate targets the conditional mean. A function estimating the clean point is a denoiser. The box 
+obtains ̂𝑥0 by solving Equation 7 for 𝑥0 and substituting the predicted noise. With the exact conditional-mean noise, 
+this is Tweedie’s formula and returns 𝔼[𝑥0 | 𝑥𝑡]. By Part 1′s squared-error identity, that mean minimizes clean-point 
+prediction error; it need not be the original training point.
+7
+
+Separating step error from predictor error.  Larger jumps use fewer predictions but can distort the generated 
+distribution. To separate this step error from network error, repeat the update with the mixture’s exact noise prediction, 
+𝜀exact(𝑥𝑡,𝑡)= 𝔼[𝜀 | 𝑥𝑡]. Calculate the conditional mean within each Gaussian component, then average using the 
+components’ probabilities given 𝑥𝑡. This removes predictor error while keeping the same grid.
+KEY CONCEPTS
+• DDIM: reuse the noise predictor with a deterministic update between selected levels.
+• Denoiser: the clean estimate targets the conditional mean; the grid controls step size.
+• Exact predictor: removes network error so the remaining discrepancy tests the sampling steps.
+3 VERIFY
+(1) DDIM’s reverse step is deterministic; DDPM’s is not.
+Run DDIM over 1000 levels twice from the same noise, and DDPM from the same 
+starting noise with two noise draws. Plot their trajectories and 2000 samples of 
+each beside exact samples. Print the largest difference between the two DDIM runs.
+The two DDIM runs agree exactly; the reference prints 0. Across the 2000 shared starts, the two DDPM runs end 
+in the same cluster only about a quarter of the time, as chance predicts for four clusters. Both samplers still 
+reproduce the target: DDIM cluster fractions lie within 0.015 of 0.25, and both samplers’ widths lie between 0.29 
+and 0.32.
+Figure 7: One starting noise gives one deterministic sample; the stochastic sampler does not, yet both reproduce the target 
+distribution.
+Part 3: Flow matching and the cost of fewer steps
+Goal: train a velocity network on straight paths by flow matching, check it against the mixture’s exact marginal velocity, 
+and compare DDPM, DDIM and flow matching on one step grid. Measure how many steps each sampler needs to reach 
+the target.
+1 DO
+Train a velocity network on the same mixture by flow matching, with the path x_s=(1-
+s)x_0+s z, z standard Gaussian, s uniform in [0,1], and target velocity z-x_0. Use the 
+noise predictor's architecture, trained from scratch, and a learning rate that decays 
+to zero. Sample by Euler steps from s=1 to s=0. Compute the exact marginal velocity of 
+the mixture for comparison.
+Compare DDPM, DDIM and flow-matching samples with 1,2,5,10,20,50,100 steps, and 1000 
+levels for DDPM and DDIM. Fewer steps use evenly spaced levels. Use 4000 samples per 
+run. Record cluster fractions, centres and widths, and the energy distance to 4000 
+exact samples. Estimate its null scale from 20 pairs of independent exact sample sets.
+8
+
+2 UNDERSTAND
+Constructing positions and velocity targets. Join a data point 𝑥0 and an independent Gaussian point 𝑧 by a straight 
+path. Time 𝑠 runs continuously from 0 to 1:
+𝑥𝑠 = (1− 𝑠)𝑥0 + 𝑠𝑧, 𝑑𝑥𝑠
+𝑑𝑠 = 𝑧 − 𝑥0. (11)
+Each pair supplies a position and a known velocity for training.
+Predicting velocity with a new network.  The network receives 𝑥𝑠 and 𝑠 and returns a velocity estimate 𝑣𝜃(𝑥𝑠,𝑠). 
+It reuses the noise predictor’s architecture and output shape, but starts with newly initialized weights rather than the 
+noise predictor’s trained weights.
+Training by squared velocity error. The target is the known path velocity 𝑧 − 𝑥0. The box averages squared errors 
+over a batch of independent data, Gaussian draws and times 𝑠, with the same two-coordinate normalization as Part 1. 
+Drawing 𝑠 uniformly in [0,1] gives equal-length time intervals equal probability.
+Algorithm 4. Train the velocity network
+Input: Newly initialized weights 𝜃; batch size 𝐵; 𝐽 updates with learning rates 𝜂𝑗; optimizer; data distribution 𝑝data.
+Output: Trained weights 𝜃.
+1: for 𝑗 = 1,…,𝐽 do
+2: for 𝑖= 1,…,𝐵 do
+3: Draw independently 𝑥(𝑖)
+0 ∼ 𝑝data, 𝑧(𝑖) ∼ 𝒩︀(0,𝐼), and 𝑠𝑖 uniformly from [0,1].
+4: 𝑥(𝑖) ← (1− 𝑠𝑖)𝑥(𝑖)
+0 + 𝑠𝑖𝑧(𝑖)
+5: end
+6: ̂ℒ︀flow ← 1
+2𝐵 ∑
+𝐵
+𝑖=1
+‖𝑣𝜃(𝑥(𝑖),𝑠𝑖)− (𝑧(𝑖)− 𝑥(𝑖)
+0 )‖
+2
+7: Update 𝜃 using gradient ∇𝜃 ̂ℒ︀flow and learning rate 𝜂𝑗.
+8: end
+9: return 𝜃
+Euler sampling with the learned velocity. Generation starts from Gaussian noise at 𝑠 = 1 and moves toward 𝑠 = 0 
+with Euler steps, holding the velocity constant over one step of size Δ𝑠 > 0:
+𝑥𝑠−Δ𝑠 = 𝑥𝑠 − Δ𝑠 𝑣𝜃(𝑥𝑠,𝑠). (12)
+The predicted velocity changes along the path, so finite steps introduce error.
+Flow matching targets the average path velocity.  Different pairs can pass through the same position at the same 
+time with different velocities. The network cannot identify the pair from (𝑥𝑠,𝑠) alone. By Part 1′s squared-error identity, 
+the optimal prediction is their conditional average, the marginal velocity:
+𝑣(𝑥,𝑠)= 𝔼[𝑧 − 𝑥0 | 𝑥𝑠 = 𝑥]. (13)
+Here “marginal” means averaging over the unobserved endpoints.
+Why the average velocity transports the target distribution.  A velocity field assigns a velocity 𝑣(𝑥,𝑠) to each 
+position and time. A point follows the ordinary differential equation (ODE)
+𝑑𝑥𝑠
+𝑑𝑠 = 𝑣(𝑥𝑠,𝑠), (14)
+which specifies its rate of change; Euler steps approximate this motion. The probability flux is density times velocity; it 
+describes probability crossing boundaries. Averaging the path velocities with their conditional probabilities preserves 
+this flux. Thus the exact field transports the same distribution as the constructed paths. Network error and finite Euler 
+steps can change the result, which is why we compare with the exact field and target.
+Checking the network against the exact mixture velocity.  Within each Gaussian component, the conditional 
+average velocity can be calculated exactly. At (𝑥,𝑠), weight these component velocities by the probabilities that the 
+components produced 𝑥𝑠 = 𝑥; these probabilities are their densities there divided by the sum of those densities. This 
+gives the exact mixture velocity 𝑣(𝑥,𝑠). For 𝑁 test points 𝑥𝑖 at a fixed 𝑠, the relative root-mean-square (RMS) error is
+9
+
+√
+ ∑𝑁
+𝑖=1 ‖𝑣𝜃(𝑥𝑖,𝑠)− 𝑣(𝑥𝑖,𝑠)‖2
+∑𝑁
+𝑖=1 ‖𝑣(𝑥𝑖,𝑠)‖2 . (15)
+The numerator sums squared prediction errors; the denominator uses the exact field’s squared lengths to set the scale. 
+Square before averaging so opposite errors cannot cancel.
+Skipping DDPM levels for the step-count comparison. The comparison also needs a random sampler on the coarser 
+grid. For a jump from 𝑡 to 𝑡′, set 𝑎 = 𝛼𝑡/𝛼𝑡′. The forward jump shrinks by √𝑎 and adds noise of variance 1− 𝑎. Use 
+Part 1′s reverse rule with these effective coefficients:
+𝜇𝑡→𝑡′ = 1√𝑎( 𝑥𝑡 − 1− 𝑎
+√1− 𝛼𝑡
+𝜀𝜃(𝑥𝑡,𝑡)) . (16)
+Add Gaussian noise of variance 1− 𝑎 when 𝑡′ > 0, and none when 𝑡′ = 0. For adjacent levels this is exactly Part 1′s 
+choice of variance 𝛽𝑡. The comparison uses evenly spaced levels before reaching zero.
+Comparing sampler outputs with energy distance.  The step-count plot needs a measure of discrepancy between 
+the generated and target distributions. Energy distance uses distances between samples. Let 𝑋,𝑋′ be generated samples 
+and 𝑌 ,𝑌 ′ exact target samples, with all four draws independent and finite expected lengths 𝔼‖𝑋‖ and 𝔼‖𝑌 ‖. Then
+𝐷 = 2𝔼‖𝑋 − 𝑌 ‖⏟    
+between distributions
+− 𝔼‖𝑋 − 𝑋′‖+ 𝔼‖𝑌 − 𝑌 ′‖⏟      
+spread within each distribution
+. (17)
+Even matching distributions usually give 𝔼‖𝑋 − 𝑌 ‖> 0: independent draws need not coincide. The two subtracted 
+terms remove this ordinary spread. If the distributions match, all three expected distances are equal and 𝐷 = 0. To justify 
+the converse and nonnegativity, in one dimension define the cumulative probabilities 𝐹(𝑟)= Pr(𝑋 ≤ 𝑟) and 𝐺(𝑟)=
+Pr(𝑌 ≤ 𝑟). The distance |𝑋 − 𝑌 | is the length of the interval between the two draws. A threshold 𝑟 lies between them 
+with probability 𝐹(𝑟)(1− 𝐺(𝑟))+ 𝐺(𝑟)(1− 𝐹(𝑟)). Integrating over 𝑟 gives the expected distance. Apply this to all 
+three terms of 𝐷 and simplify:
+𝐷 = 2∫
+∞
+−∞
+(𝐹(𝑟)− 𝐺(𝑟))2 d𝑟. (18)
+For our two-dimensional samples, project each point onto a line. Euclidean length is 𝜋
+2  times the average absolute 
+projection length over uniform directions, so 𝐷 is 𝜋
+2  times the average of these nonnegative one-dimensional distances. 
+Hence 𝐷 ≥ 0. If 𝐷 = 0, the projected distributions agree in every direction: their energy distance is continuous in 
+direction, so a positive value anywhere would make the average positive. All line projections together determine 
+the joint distribution. Thus 𝐷 = 0 exactly when the generated and target distributions match, justifying its use as a 
+distribution discrepancy in the step-count plot. See Székely and Rizzo, Section 2.
+Judging energy distance against sampling variation. Estimates from finite samples fluctuate; replacing the expec-
+tations by averages over distinct pairs can even give a negative estimate. Compare independent exact sample sets to 
+measure this fluctuation, the null scale. Use their 95% quantile, the value below which 95% of those distances fall. 
+A generated sample set within this scale shows no difference large enough for this test to distinguish at the chosen 
+sample size.
+Reading the uncertainty band on cluster fractions. Even exact draws do not put exactly a quarter of a finite sample 
+in each cluster. Repeated sets of 𝑁 independent points give slightly different fractions. The standard deviation of such 
+an estimated quantity is its standard error. For a cluster with probability 𝑝, the fraction’s standard error is √𝑝(1− 𝑝)/𝑁. 
+The reference plot shades two standard errors around 𝑝 = 0.25. This is the binomial sampling variation, the variation 
+in how many of 𝑁 independent draws enter one chosen cluster.
+For the conservation proof and conditional training construction, see the Flow Matching Guide, Sections 3.5 and 4.2–
+4.5. The guide runs time from noise to data; here data is at 𝑠 = 0.
+KEY CONCEPTS
+• Flow matching and marginal velocity: regression on straight-line velocities learns their conditional mean, 
+which Euler steps follow from noise to data.
+10
+
+• Probability conservation: the averaged path velocities carry the same probability flux as the constructed 
+training paths.
+• Energy distance and null scale: one number for two whole sample sets, judged against its spread between 
+exact sets.
+3 VERIFY
+(1) The learned velocity matches the exact marginal velocity.
+Plot the learned and exact velocity fields at s=0.1,0.5,0.9 on a grid over the 
+samples, and report their relative RMS difference at each s, the RMS of the 
+difference divided by the RMS of the exact velocity.
+The arrows overlap; yours should differ by less than 0.1 at every 𝑠, and the reference gives 0.011, 0.017 and 
+0.058. The arrows show 𝑑𝑥𝑠/𝑑𝑠 for increasing 𝑠; generation runs against them. Near 𝑠 = 1 the field approaches 
+𝑣(𝑥,1)= 𝑥, because the mixture’s mean is zero.
+Figure 8: The learned field reproduces the mixture’s marginal velocity, which is why Euler steps can follow it. Arrow lengths are 
+clipped in the far field.
+(2) Flow matching and DDIM need tens of steps; DDPM needs more.
+Plot the energy distance, the largest cluster-fraction error and the largest width 
+error against the number of steps for the three samplers, with the null scale 
+shaded.
+By 20 steps your flow sampler should reach an energy distance below 0.005 and widths within 0.03 of 0.30. The 
+reference flow sampler reaches 0.0015 at 20 steps, at the edge of the null 95% quantile 0.0013; DDIM reaches 
+0.0038, and DDPM needs about 50 levels. One or two steps fail for every sampler, even with the exact noise 
+prediction or velocity: the samples collapse toward the mean. On this mixture the gain over DDIM is modest.
+11
+
+Figure 9: Flow matching and DDIM reach the target in tens of steps while DDPM needs about fifty. Shaded bands are the exact-
+versus-exact null scale and two binomial standard errors of a cluster fraction; energy distances below 10−4 are drawn at 10−4. The 
+dashed line marks 20 steps.
+Part 4: The same predictor on photographs
+Goal: load a predictor already trained on CIFAR-10 photographs and generate recognizable images with Part 1′s DDPM 
+update, without further training. Part 5 uses the same model to fill in missing pixels.
+1 DO
+Download the CIFAR-10 noise predictor, already trained, from Hugging Face. Keep these files for Part 5.
+uv run --with huggingface-hub==1.33.0 hf download google/ddpm-cifar10-32 \
+  config.json diffusion_pytorch_model.safetensors \
+  --revision 267b167dc01f0e4e61923ea244e8b988f84deb80 \
+  --local-dir inputs/cifar-model
+Generating four images takes roughly three minutes on the reference CPU.
+Load the downloaded pretrained weights and configuration as a fixed noise predictor in 
+JAX. Match the network in this reference implementation: 
+https://github.com/huggingface/diffusers/tree/v0.40.0
+Use the pretrained predictor with the same 1000-step DDPM sampler as on the mixture, 
+without clipping during sampling. Use float32 arrays and pass noise level t as model 
+index t-1. Keep the downloaded weights fixed.
+2 UNDERSTAND
+Loading the predictor from weights and configuration. A pretrained network has already learned its weights. We 
+use google/ddpm-cifar10-32 , trained to predict noise in photographs. It is unconditional: it receives no requested 
+object category or text. The weights file supplies its parameters; the configuration file specifies the architecture. The 
+download’s revision fixes the version of both. We keep those weights fixed throughout sampling.
+Predicting one noise value per pixel and colour channel. Each pixel has red, green and blue values, its three colour 
+channels. The image is an array, an indexed collection of numbers; its shape counts entries along each direction. For a 
+batch of 𝐵 images the predictor maps
+𝜀𝜃 : (𝑥𝑡,𝑡)↦ ̂𝜀, 𝑥𝑡,̂𝜀 ∈ ℝ𝐵×3×32×32. (19)
+Channels come before height and width. The output estimates one noise value per pixel and channel, exactly the 
+quantity Part 1′s DDPM sampler needs.
+Matching the checkpoint’s indexing and colour range. Apply the same 1000-step DDPM algorithm to these arrays. 
+Use float32, storing each number approximately with 32 binary digits. The checkpoint counts levels from zero: pass our 
+12
+
+𝑡 as model index 𝑡− 1. Clean colours lie in [−1,1]; for display map 𝑥 to 𝑥+1
+2  and clip to [0,1]. Keep the sampling states 
+unclipped.
+Convolutions extract local image features. The image predictor uses convolutions: each slides a learned filter over 
+the image. At each position it multiplies nearby values in all input channels by matching weights, sums the products 
+and adds a learned bias. Each filter produces one feature channel, a grid of responses.
+The U-Net combines coarse context with pixel detail. The U-Net [1] reduces the grid size, or spatial resolution, to 
+gather wider context, then enlarges it to predict noise at every original pixel. Its down path reduces side lengths from 32 
+through 16 and 8 to 4; the up path returns to 32. Skip connections append saved down-path features to up-path features 
+at matching resolutions, preserving detail. The final convolution returns three noise channels. The configuration fixes 
+the layer dimensions and operations that the implementation must match. As in Part 1, time features computed from 𝑡 
+are supplied throughout the network; here they are called the time embedding.
+KEY CONCEPTS
+• Weights and configuration: learned parameter values and the architecture needed to use them.
+• Noise prediction: noisy image and noise level in, an image-shaped noise estimate out.
+• Generation: Part 1′s DDPM update, unchanged, turns that estimate into an image.
+3 VERIFY
+(1) The downloaded predictor generates recognizable photographs.
+Generate four images from Gaussian noise using the downloaded predictor and the 
+1000-step DDPM sampler. Visualize stages of the reverse process and the final 
+images. Compare them with real CIFAR-10 images using the Week 6 image-gallery 
+scripts.
+Follow each noise image through the reverse process and compare the emerging colours, shapes and objects with 
+the CIFAR-10 examples of Week 6′s Part 1. Structure appears late: at 𝑡= 200 the images are still mostly noise, and 
+objects become recognizable only between 𝑡= 200 and 𝑡= 50. Explain which part of this process was learned 
+before the download and which part your sampler computes now.
+Figure 10: The downloaded weights and Part 1′s update produce recognizable objects without further training. Each row follows one 
+sample; states are clipped only for display.
+13
+
+Part 5: Filling in missing pixels with the downloaded model
+Goal: use the downloaded predictor to fill in a hidden square of a photograph, and check that every filled image keeps the 
+visible pixels exactly. Repeating the process with different random choices should fill the hole with different, plausible 
+content.
+1 DO
+Fetch the prepared CIFAR-10 images, stored in [−1,1], into your week7/  directory. The file holds four test images.
+mkdir -p inputs
+curl -fL https://giggleliu.github.io/AMAT5315-2026Fall/downloads/week7-images.npz \
+  -o inputs/images.npz
+With the pretrained CIFAR-10 predictor, inpaint images from observed pixels and a 
+mask, given the observations and the mask only. Implement RePaint with 50 reverse 
+jumps over levels 1000,980,...,20,0, two attempts per jump except the last, forward 
+noise between attempts, and known pixels replaced by forward-noised observations.
+Use the four test images in inputs/images.npz. Hide rows and columns 6:26, all three 
+channels, and inpaint each image with RePaint using seeds 7201,7202,7203,7204. Record 
+each completion and its hidden-pixel mean squared error (MSE).
+2 UNDERSTAND
+Specifying visible and missing pixels with a mask.  Filling the missing part of an image is inpainting. The filled 
+image is a completion. The visible values are the observations; the sampler does not receive the hidden truth. A mask 𝑀 
+with the image’s shape specifies which values may change. It contains 1 at observed entries and 0 at hidden ones. Our 
+mask hides a central 20× 20 square in all three colour channels. Write 𝑌  for the observed image values where 𝑀 =
+1; set its unused entries to zero where 𝑀 = 0.
+Noising observations to match the sampling state.  Before inserting observations into a state at level 𝑡′, use Part 
+1′s direct noising formula:
+𝑌𝑡′ = √𝛼𝑡′𝑌 + √1− 𝛼𝑡′𝜂, 𝜂 ∼ 𝒩︀(0,𝐼). (20)
+These are the forward-noised observations.
+Keeping observed pixels and proposing hidden pixels. RePaint is an inpainting sampler that replaces the observed 
+pixels after every reverse step and can retry steps to improve the fit across the hole’s boundary. Call the image suggested 
+by a reverse step its proposal, 𝑍𝑡′. Keep its hidden pixels, but replace its observed pixels with 𝑌𝑡′. This combination is 
+the merge:
+𝑋𝑡′ = 𝑀 ⊙ 𝑌𝑡′ + (1− 𝑀)⊙ 𝑍𝑡′, (21)
+where ⊙ multiplies matching entries. Both regions must be at the same noise level, which is why we use 𝑌𝑡′. At 𝑡′ = 0, 
+𝑌𝑡′ = 𝑌 , so the last merge preserves every observed value exactly.
+Drawing RePaint’s proposal across skipped levels.  To reduce the number of network evaluations, RePaint visits 
+1000,980,…,20,0. Each proposal jumps from 𝑡 to 𝑡′ < 𝑡, skipping levels as in Part 3′s DDPM comparison. We use Part 
+2′s Tweedie estimate ̂𝑋0, clipped to the clean image range [−1,1]. Only this estimate is clipped, not the noisy state. Set 
+𝑎 = 𝛼𝑡
+𝛼𝑡′
+ as in Part 3. If we treat the clean estimate as the original image, the Gaussian forward rule gives a conditional 
+distribution for the lower-level state. Its mean is
+𝜇𝑡→𝑡′ = √𝛼𝑡′(1− 𝑎)
+1− 𝛼𝑡
+̂𝑋0 +
+√𝑎(1− 𝛼𝑡′)
+1− 𝛼𝑡
+𝑋𝑡. (22)
+The variance per coordinate is
+𝑣𝑡→𝑡′ = (1− 𝛼𝑡′)(1− 𝑎)
+1− 𝛼𝑡
+. (23)
+14
+
+This differs from Part 3′s choice 1− 𝑎 for the DDPM comparison. Draw the proposal 𝑍𝑡′ around 𝜇𝑡→𝑡′ with this variance 
+per coordinate, then apply the RePaint merge. At 𝑡′ = 0 the variance is zero.
+Repeating reverse jumps in the RePaint loop. Use two attempts for each jump except the final jump to zero, which 
+is taken once. The cost is 49 × 2+ 1 = 99 network evaluations. Every Gaussian draw below is fresh, independent of 
+earlier draws, and has the image’s shape. As in Part 4, the predictor maps mathematical level 𝑡 to checkpoint index 
+𝑡− 1.
+Algorithm 5. RePaint inpainting
+Input: Fixed predictor 𝜀𝜃; observations 𝑌  and mask 𝑀; schedule 𝛼𝑡 with 𝑇 = 1000 and 𝛼0 = 1.
+Output: Completion 𝑋0 with 𝑀 ⊙ 𝑋0 = 𝑀 ⊙ 𝑌 .
+1: Draw 𝑋𝑇 ∼ 𝒩︀(0,𝐼) with the image’s shape.
+2: for 𝑡= 1000,980,…,20 do
+3: Set 𝑡′ = 𝑡− 20 and 𝑎 = 𝛼𝑡
+𝛼𝑡′
+.
+4: Set 𝑅 = 2 if 𝑡′ > 0, otherwise 𝑅 = 1.
+5: for 𝑟 = 1,…,𝑅 do
+6: if 𝑟 > 1 then
+7: Draw 𝑓 ∼ 𝒩︀(0,𝐼).
+8: 𝑋𝑡 ← √𝑎𝑋𝑡′ +
+√
+1− 𝑎𝑓
+9: end
+10: ̂𝜀 ← 𝜀𝜃(𝑋𝑡,𝑡)
+11: ̂𝑋0 ← 𝑋𝑡 − √1− 𝛼𝑡̂𝜀
+√𝛼𝑡
+12: Clip each entry of ̂𝑋0 to [−1,1].
+13: Compute 𝜇𝑡→𝑡′ and 𝑣𝑡→𝑡′ from Equation 22 and Equation 23 using the current 𝑋𝑡 and ̂𝑋0.
+14: Draw independent 𝜉,𝜂 ∼ 𝒩︀(0,𝐼).
+15: 𝑍𝑡′ ← 𝜇𝑡→𝑡′ + √𝑣𝑡→𝑡′𝜉
+16: 𝑌𝑡′ ← √𝛼𝑡′𝑌 + √1− 𝛼𝑡′𝜂
+17: 𝑋𝑡′ ← 𝑀 ⊙ 𝑌𝑡′ + (1− 𝑀)⊙ 𝑍𝑡′
+18: end
+19: end
+20: return 𝑋0
+Why retrying lets hidden pixels respond to observations. The first proposal uses the state before the observations 
+are merged. Adding forward noise to the merged state and repeating the jump lets the predictor respond to those 
+observations when proposing the hidden pixels.
+See Lugmayr et al., RePaint, Section 4.1, for the resampling method.
+Measuring completion error and variation.  The hidden-pixel MSE averages squared errors against the withheld 
+truth over the hole’s 400 pixels and three channels, 1200 values in total. Many images can agree with the observations, 
+so a plausible completion can still have a large error. A random seed selects a sequence of random draws; different seeds 
+produce different completions. The pixelwise variance across completions measures where they disagree. It measures 
+variation, not error against the truth.
+KEY CONCEPTS
+• Mask and inpainting: the mask marks observed pixels; a completion keeps them and fills the rest.
+• Forward-noised observations: the observed pixels, noised to the sampler’s current level with Part 1′s jump 
+formula.
+• RePaint: a coarse reverse sampler with the observed pixels overwritten after every jump; retry each jump after 
+forward noising, except the final jump to zero.
+• Hidden-pixel MSE and the spread of completions:  error against the withheld truth; different seeds give 
+different plausible completions where the observation says nothing.
+3 VERIFY
+(1) Completions keep the observed pixels and disagree inside the hole.
+15
+
+For each test image, show the truth, the observation, the four completions and the 
+pixelwise variance across them. Print each completion's hidden-pixel MSE and the 
+largest change of an observed pixel.
+Every observed pixel should change by less than 10−5: RePaint overwrites them at the last level. Outside the hole 
+the four completions are identical; inside it they differ. In the reference the hidden-pixel MSE averages 0.24 over 
+images and seeds; on the ship below it ranges from 0.13 to 0.38 across seeds. Locate the disagreements on the 
+variance map, and explain why a completion can look plausible and still be wrong.
+Figure 11: The observation leaves the hidden square undetermined, so each seed completes it differently. The reference ship image: 
+truth, observation, the mean and pixelwise variance of four RePaint completions, and the four completions with their hidden-pixel 
+MSE.
+Save the results and prepare to show your work
+Update README.md with each evidence figure beside its producing command. Explain the 
+transport comparison, the generated photographs and the inpainting result. Record 
+training settings, environment setup and the pinned model download. Keep downloaded 
+weights out of git. Push the source, environment and evidence.
+Show the completed evidence at the start of Week 8. Nothing is submitted.
+[1] O. Ronneberger, P. Fischer, and T. Brox, “U-Net: Convolutional Networks for Biomedical Image Segmentation, ” in Medical Image Computing and Computer-
+Assisted Intervention,  2015, pp. 234–241. doi: 10.1007/978-3-319-24574-4_28.
+16

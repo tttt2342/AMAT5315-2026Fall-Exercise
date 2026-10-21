@@ -1,0 +1,5 @@
+[project]
+name = "amat5315-week7"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["jax", "optax", "numpy", "scipy", "matplotlib", "pillow", "safetensors", "huggingface-hub==1.33.0", "torch", "diffusers==0.40.0", "accelerate"]
