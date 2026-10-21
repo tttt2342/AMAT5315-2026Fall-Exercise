@@ -1,0 +1,115 @@
+{
+  "python": "3.12.15",
+  "platform": "macOS-26.1-arm64-arm-64bit",
+  "backend": "cpu",
+  "packages": {
+    "jax": "0.12.0",
+    "jaxlib": "0.12.0",
+    "optax": "0.2.8",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "matplotlib": "3.11.2",
+    "pillow": "13.0.0",
+    "safetensors": "0.8.0",
+    "huggingface-hub": "1.33.0",
+    "torch": "2.14.1",
+    "diffusers": "0.40.0"
+  },
+  "test_returncode": 0,
+  "test_count": 11,
+  "downloads": {
+    "week7-learning-sheet.pdf": {
+      "sha256": "e0081ed15c69029ae6ac24419195c31859e2d680f8e29e6be4f5af756006065a",
+      "bytes": 1889258
+    },
+    "inputs/images.npz": {
+      "sha256": "edce7ff8b6c2cd8b134846cdab7d7555c22ce2c0da89c97364c438575b4e344c",
+      "bytes": 36444
+    },
+    "inputs/cifar-model/config.json": {
+      "sha256": "49579448cd5728fb83f14186de12464eee143d2f5dccb11b8e13744d712eae9d",
+      "bytes": 699
+    },
+    "inputs/cifar-model/diffusion_pytorch_model.safetensors": {
+      "sha256": "1558dbe3fb093b0857d473e376b711eeda1b186c557be5e85b3a56300cd49f0f",
+      "bytes": 143020084
+    }
+  },
+  "figures": {
+    "cifar_comparison.png": {
+      "sha256": "819fb4391bd03369153f626ceff1c166c875a7592214f53aedcaf6fddc2b5e6c",
+      "bytes": 53327
+    },
+    "ddpm_distribution.png": {
+      "sha256": "c81380062ece6dd53ec9480eff66a01de328a325f85d480e3087299e25dd2d0c",
+      "bytes": 81246
+    },
+    "determinism.png": {
+      "sha256": "d7d1a560d67276978239b8df632c5c28a44cb5051d7dfc0280b8c343febd6255",
+      "bytes": 296992
+    },
+    "forward.gif": {
+      "sha256": "db451d2b1a4e99f6ce75591852499cdb4029c6bbf611f2adb9eccce4f187d78b",
+      "bytes": 1114823
+    },
+    "inpainting.png": {
+      "sha256": "537f81c0ed7177d85b569a4736e85467e900736ed3c23f510ec7b90340fdc3ad",
+      "bytes": 158789
+    },
+    "photographs.png": {
+      "sha256": "8ba84b45e32ccc2be0fc38c175e735a365b7696b8c5f7a0f430ed9d47d6dc6d9",
+      "bytes": 178332
+    },
+    "reverse.gif": {
+      "sha256": "65e22acc8a2e1d6ef1b680380479c753d5eae9758403a663e6df3f22c24fa103",
+      "bytes": 1114355
+    },
+    "step_comparison.png": {
+      "sha256": "a38021bdf9a58d4194a22313d6afde004ef274df8601749a7e4ed588206059e7",
+      "bytes": 157587
+    },
+    "training.gif": {
+      "sha256": "a6e3ce76fd78386a224dff86f1f8ad91e3e4130d4076287a810ecc32969c5741",
+      "bytes": 354370
+    },
+    "training.png": {
+      "sha256": "0d1bf009b75c785ec158711292aa1cbe705850036879f6b3afe8cd6cc859ff56",
+      "bytes": 172435
+    },
+    "velocity.png": {
+      "sha256": "fbc8a1f0bc440719b0b240697747853a6d81d7b46cd5ea86d855b44d12aa38f5",
+      "bytes": 381293
+    }
+  },
+  "model_revision": "267b167dc01f0e4e61923ea244e8b988f84deb80",
+  "raw_files": [
+    "flow_0.npz",
+    "flow_100.npz",
+    "flow_1000.npz",
+    "flow_10000.npz",
+    "flow_17500.npz",
+    "flow_250.npz",
+    "flow_2500.npz",
+    "flow_25000.npz",
+    "flow_500.npz",
+    "flow_5000.npz",
+    "flow_training.npz",
+    "inpainting.npz",
+    "noise_0.npz",
+    "noise_100.npz",
+    "noise_1000.npz",
+    "noise_10000.npz",
+    "noise_17500.npz",
+    "noise_250.npz",
+    "noise_2500.npz",
+    "noise_25000.npz",
+    "noise_500.npz",
+    "noise_5000.npz",
+    "noise_training.npz",
+    "part1.npz",
+    "part2.npz",
+    "part3.npz",
+    "photographs.npz"
+  ],
+  "known_reference_difference": "Part 2 learned DDIM width range 0.27793\u20130.31634; reference 0.29\u20130.32; retained without seed selection."
+}

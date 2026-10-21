@@ -162,3 +162,73 @@ uv run --locked python scripts/images.py generate
 图库复现依赖Week 6已下载的`../week6/inputs/cifar10/cifar-10-binary.tar.gz`。
 如果缺失，可先执行Week 6 README中的数据下载命令；数据源为
 https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/cifar-10-binary.tar.gz 。
+
+## Part 5：RePaint 补全
+
+```sh
+mkdir -p inputs
+curl -fL https://giggleliu.github.io/AMAT5315-2026Fall/downloads/week7-images.npz \
+  -o inputs/images.npz
+uv run --locked python scripts/images.py inpaint
+```
+
+最后一条命令生成下图及MSE表。
+
+![Four images and four seeds](evidence/inpainting.png)
+
+输入NPZ中使用`test`的四张图片，`validation`没有用于选择参数或结果。
+遮住全部通道的行列6:26（Python右端不含26），每图1200个隐藏值；未观察位置先置0。
+`repaint()`只接收observations和mask，不接收隐藏真值；真值仅在采样结束后计算MSE与展示。
+
+层级1000、980、…、20、0；前49个跳步各尝试两次，末跳只尝试一次，共99次网络评估。
+重试前先将合并状态重新向前加噪。每次用讲义式22–23的后验均值和方差提案，并以同层级加噪后的观测覆盖可见像素。
+这里仅Tweedie干净估计裁剪至[-1,1]，噪声状态不裁剪；不能用Part 3的跳步方差1−a替代RePaint后验方差。
+末层ᾱ₀=1，观测不再含噪声，所以每个可见像素都被精确恢复。
+
+| 种子 | 图1（猫） | 图2（船） | 图3（船） | 图4（飞机） |
+|---|---:|---:|---:|---:|
+| 7201 | 0.15129 | 0.12957 | 0.09425 | 0.20751 |
+| 7202 | 0.11335 | 0.18805 | 0.13102 | 0.30867 |
+| 7203 | 0.16113 | 0.19411 | 0.13624 | 0.15401 |
+| 7204 | 0.17221 | 0.36266 | 0.06766 | 0.50505 |
+
+这是原始[-1,1]颜色尺度的隐藏区域MSE，未用显示图或[0,1]尺度重新计算。
+16张补全平均MSE **0.19230**；最大可见像素变化 **0**，洞外方差 **0**，洞内平均方差 **0.08595**。
+方差图对4个种子取总体方差（ddof=0），再对RGB取均值，各行共用色标范围。
+统计见 [inpainting.json](evidence/inpainting.json)，原始补全、观测、mask和方差保存在`artifacts/inpainting.npz`。
+
+猫的中心脸部、船的船舱与船体，以及飞机所在的中央区域变化明显；洞外边缘始终相同。
+船的不同补全能接上外侧背景，但可能改变船舱颜色和结构；飞机图某些补全甚至变成与原物体不同的形状。
+合理补全只要求与观察内容相容，隐藏真值不是唯一可能，因此看似合理仍可有很大MSE。
+高方差表示不同补全意见不一致，不等于与真值误差一定高；反过来低方差也不能证明正确。
+
+## 最终核验与完整复现
+
+```sh
+uv sync --locked
+export JAX_PLATFORMS=cpu
+export MPLCONFIGDIR=artifacts/mpl
+uv run --locked python scripts/mixture.py train-noise
+uv run --locked python scripts/mixture.py part1
+uv run --locked python scripts/mixture.py part2
+uv run --locked python scripts/mixture.py train-flow
+uv run --locked python scripts/mixture.py part3
+# 先执行Part 4与Part 5中的下载命令，并准备Week 6的CIFAR-10数据。
+uv run --locked python scripts/images.py verify
+uv run --locked python scripts/images.py generate
+uv run --locked python scripts/images.py inpaint
+uv run --locked python scripts/verify.py
+```
+
+最后一条命令执行11项测试，生成 [verification.json](evidence/verification.json) 和 [run_settings.json](evidence/run_settings.json)。
+验证包括独立高斯条件公式、无偏能量距离、末步不加噪、完整预算与已保存实验结果；RePaint与独立NumPy实现逐步公式对照。
+U-Net与官方参考的实际数值对照由 `images.py verify` 完成，测试再检查其记录。
+本次11项均通过；这不表示DDIM已达到Part 2的参考宽度范围，该差异单列保留。
+
+环境由`uv.lock`固定；实际版本、CPU后端、模型与输入SHA-256、11张图/动画的SHA-256均记录在verification中。
+所有训练与评估随机种子见run_settings和两个training JSON；相同平台可按命令复现，硬件和底层库变化可能产生浮点差异。
+下载的权重保持固定，没有权重更新操作；模型权重、原始训练检查点、输入图片和大数组保存在本地被忽略目录。
+
+按五个任务分别提交源码、环境与证据。本次完成五个必做部分，不做bonus。
+[模拟指挥记录](DIRECTION_LOG.md)按学生口吻组织任务指令，并明确标注为角色模拟；不冒充真实逐字对话。
+讲义要求Week 8开始展示，本README可直接作为展示材料；本周没有另行提交入口，也未声称完成课堂展示。
