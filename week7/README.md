@@ -119,3 +119,46 @@ Flow在20步满足D<0.005且宽度误差<0.03。DDIM也只需要几十步，本�
 DDPM虽然20步的能量距离落在null尺度内，但宽度明显过大，需要约50步才达宽度容差。
 因此一个总体距离小不代表每项局部统计都准确。
 1–2步对三种方法均失败；精确场也无法消除大步长误差。精确单步Flow直接把x减去x而塌缩到原点；学习DDPM/DDIM的单步还会将最高噪声层的预测误差放大，未必只表现为塌缩。
+
+## Part 4：预训练照片生成
+
+固定版本下载（文件留在被Git忽略的`inputs/`）：
+
+```sh
+uv run --with huggingface-hub==1.33.0 hf download google/ddpm-cifar10-32 \
+  config.json diffusion_pytorch_model.safetensors \
+  --revision 267b167dc01f0e4e61923ea244e8b988f84deb80 \
+  --local-dir inputs/cifar-model
+uv run --locked python scripts/images.py verify
+uv run --locked python scripts/images.py generate
+```
+
+最后一条命令生成这两张图。
+
+![Reverse photograph stages](evidence/photographs.png)
+![Generated versus real CIFAR-10](evidence/cifar_comparison.png)
+
+`scripts/images.py`按配置实现 JAX U-Net：128/256/256/256通道、GroupNorm、SiLU、残差块、16×16与中间4×4 attention、下采样、最近邻上采样与跳跃拼接。
+读取原始safetensors，卷积权重从OIHW转成HWIO，旧attention参数名映射到参考实现的新名。
+时间嵌入使用该检查点的 `flip_sin_to_cos=false`、`freq_shift=1`；每次数学层级t传为模型索引t−1。
+内部卷积为NHWC，网络输入输出为B×3×32×32，全部float32。
+
+参考为 [Diffusers v0.40.0](https://github.com/huggingface/diffusers/tree/v0.40.0)。
+验证在模型索引0、49、499、999用相同输入分别运行PyTorch参考和JAX实现；最大绝对差1.0014×10⁻⁵，最大相对RMS约7.19×10⁻⁷。
+详见 [unet_verification.json](evidence/unet_verification.json)。PyTorch只用于独立对照，实际照片生成与补全均在JAX CPU运行。
+
+生成固定4张图片，种子7200，完整1000步；复用Part 1的线性β、方差β、末步不加噪，采样状态和干净估计都不裁剪。
+显示时才映射(x+1)/2并裁剪到[0,1]。原始末态最大值约1.01886，保存此值也证明未把采样状态裁成[-1,1]。
+本机采样与绘图约54秒，详见 [photographs.json](evidence/photographs.json)。
+
+前几列基本是彩色噪声；t=200时出现大致色块，t=100到50时物体轮廓逐渐清楚。
+最终第一张类似道路上的车辆，第二张像青蛙，第三张像树枝旁的鸟，第四张像站立的鸟；32×32分辨率下类别判断有不确定性。
+下方真实图库使用Week 6的`cifar()`和`gallery()`，按测试集原顺序取前四张，不按生成图挑选匹配对象。
+真实图片有更明确的物体和背景关系；生成图片也形成类似照片的颜色与形状，但细节模糊，并不保证每张都对应清晰类别。
+
+下载前学到的是噪声预测器的权重，即不同噪声层下的图像规律。现在程序计算的是固定权重的前向预测、反向均值和高斯抽样；没有再训练网络。
+该模型无类别条件、无文本输入。照片不是恢复某张原图，而是从新噪声生成样本。
+
+图库复现依赖Week 6已下载的`../week6/inputs/cifar10/cifar-10-binary.tar.gz`。
+如果缺失，可先执行Week 6 README中的数据下载命令；数据源为
+https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/notebook/datasets/cifar-10-binary.tar.gz 。

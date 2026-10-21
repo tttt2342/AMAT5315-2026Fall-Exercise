@@ -1,0 +1,12 @@
+{
+  "seed": 7200,
+  "steps": 1000,
+  "batch": 4,
+  "dtype": "float32",
+  "model_index": "t-1",
+  "clipping": "display only",
+  "seconds": 53.98731183295604,
+  "final_min": -0.973222017288208,
+  "final_max": 1.0188626050949097,
+  "revision": "267b167dc01f0e4e61923ea244e8b988f84deb80"
+}

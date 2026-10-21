@@ -1,0 +1,26 @@
+{
+  "reference": "diffusers==0.40.0 CPU float32",
+  "revision": "267b167dc01f0e4e61923ea244e8b988f84deb80",
+  "checks": [
+    {
+      "model_index": 0,
+      "max_abs": 8.106231689453125e-06,
+      "relative_rms": 7.190645874288748e-07
+    },
+    {
+      "model_index": 49,
+      "max_abs": 1.0013580322265625e-05,
+      "relative_rms": 7.136856083889143e-07
+    },
+    {
+      "model_index": 499,
+      "max_abs": 5.7220458984375e-06,
+      "relative_rms": 7.04276999385911e-07
+    },
+    {
+      "model_index": 999,
+      "max_abs": 5.9604644775390625e-06,
+      "relative_rms": 7.021462238299137e-07
+    }
+  ]
+}
