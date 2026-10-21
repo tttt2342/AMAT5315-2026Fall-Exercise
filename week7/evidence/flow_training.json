@@ -1,0 +1,30 @@
+{
+  "seed": 7102,
+  "updates": 25000,
+  "batch": 512,
+  "architecture": [
+    34,
+    128,
+    128,
+    128,
+    2
+  ],
+  "activation": "silu",
+  "time_features": "sin/cos(geomspace(1,100,16)*s)",
+  "optimizer": "Adam",
+  "learning_rate_initial": 0.001,
+  "learning_rate_final": 0.0,
+  "stages": [
+    0,
+    100,
+    250,
+    500,
+    1000,
+    2500,
+    5000,
+    10000,
+    17500,
+    25000
+  ],
+  "seconds": 14.82065429200884
+}
