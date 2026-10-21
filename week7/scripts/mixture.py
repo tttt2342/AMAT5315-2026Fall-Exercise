@@ -194,6 +194,10 @@ def part2():
     savefig(fig,'determinism.png')
     labels=lambda x:np.argmin(np.sum((x[:,None]-np.asarray(CENTRES))**2,axis=-1),axis=1)
     result={name:metrics(x) for name,x in outputs.items()}
+    analytic_end=np.asarray(sample(p,start,key,method='ddim',analytic=True))
+    result['DDIM exact']=metrics(analytic_end)
+    outputs['DDIM exact']=analytic_end
+    result['reference_width_range_matched']=bool(all(.29 <= np.array(result[n]['widths']).min() and np.array(result[n]['widths']).max() <= .32 for n in ['DDIM A','DDPM A','DDPM B']))
     result['ddim_max_difference']=float(abs(outputs['DDIM A']-outputs['DDIM B']).max())
     result['ddpm_same_cluster_fraction']=float(np.mean(labels(outputs['DDPM A'])==labels(outputs['DDPM B'])))
     np.savez(A/'part2.npz',**outputs,**{name+'_paths':v for name,v in paths.items()})
@@ -215,6 +219,7 @@ def part3():
         test=(1-s)*exact_data(jax.random.PRNGKey(7181),10000)+s*jax.random.normal(jax.random.PRNGKey(7182),(10000,2))
         truth=np.asarray(exact_velocity(test,s)); pred=np.asarray(net(v,test,s))
         error=float(np.sqrt(np.sum((truth-pred)**2)/np.sum(truth**2)));field[str(s)]=error
+        ax.scatter(*np.asarray(test[:600]).T,s=2,color='grey',alpha=.25)
         xx,yy=np.meshgrid(np.linspace(-4,4,17),np.linspace(-4,4,17)); grid=np.c_[xx.ravel(),yy.ravel()]
         vt=np.asarray(exact_velocity(grid,s));vp=np.asarray(net(v,grid,s))
         # Arrows on the grid are visual context; RMS is on independent marginal samples.
@@ -235,7 +240,7 @@ def part3():
                 ax.plot(steps,y,ls,marker='.',color=color,label=method+(' exact' if analytic else ' learned'))
     axs[0].axhspan(1e-4,max(q,1e-4),color='grey',alpha=.2);axs[0].set_yscale('log')
     axs[1].axhspan(0,2*np.sqrt(.25*.75/4000),color='grey',alpha=.2)
-    axs[2].axhline(.03,color='grey',ls=':')
+    axs[2].axhline(.03,color='grey',ls=':');axs[2].set_yscale('log')
     for ax,title in zip(axs,['Energy distance (floor 1e-4)','Largest cluster fraction error','Largest coordinate width error']):
         ax.set(xscale='log',xlabel='Network evaluations',title=title);ax.axvline(20,color='grey',ls=':')
     axs[0].legend(fontsize=7);savefig(fig,'step_comparison.png')

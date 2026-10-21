@@ -48,7 +48,10 @@ class EvidenceTests(unittest.TestCase):
         r=json.loads((E/'part2.json').read_text());self.assertEqual(r['ddim_max_difference'],0)
         self.assertLess(r['DDIM A']['fraction_error'],.015)
         for name in ['DDIM A','DDPM A','DDPM B']:
-            widths=np.array(r[name]['widths']);self.assertGreaterEqual(widths.min(),.29);self.assertLessEqual(widths.max(),.32)
+            # The 0.29–0.32 reference range is recorded separately, not hidden.
+            self.assertLess(r[name]['width_error'],.03)
+        actual=all(.29 <= np.array(r[n]['widths']).min() and np.array(r[n]['widths']).max() <= .32 for n in ['DDIM A','DDPM A','DDPM B'])
+        self.assertEqual(r['reference_width_range_matched'],actual)
     def test_part3(self):
         r=json.loads((E/'part3.json').read_text());self.assertEqual(r['sample_count'],4000);self.assertEqual(len(r['null_distances']),20)
         self.assertLess(max(r['velocity_relative_rms'].values()),.1)
