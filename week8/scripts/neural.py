@@ -64,10 +64,10 @@ def train(kind):
   settings['accuracy_by_distance']={str(d):float(correct[dist==d].mean()) for d in range(1,5)}; settings['test_sequences']=20000; settings['example_tokens']=x[0]; settings['example_target']=int(y[0]); settings['example_weights']=np.asarray(a[0])
   plt.figure(figsize=(9,4)); ax=plt.subplot(121); ax.plot(range(1,5),list(settings['accuracy_by_distance'].values()),'o-'); ax.axhline(.95,ls=':',color='gray'); ax.set(xlabel='query-memory distance',ylabel='accuracy',ylim=(0,1.05)); ax=plt.subplot(122); im=ax.imshow(a[0],vmin=0,vmax=1); plt.colorbar(im,ax=ax); ax.set(xlabel='read position',ylabel='output position'); fig('recall')
  else:
-  val=data['val']; inp=np.concatenate([[meta['eos']],val]); losses=[]; evaluate=jax.jit(lambda p,x,y:optax.softmax_cross_entropy_with_integer_labels(transformer(p,x),y))
-  for begin in range(0,len(val),4096):
-   starts=np.arange(begin,min(begin+4096,len(val)),64); x=inp[np.minimum(starts[:,None]+np.arange(64),len(inp)-1)]; y=inp[np.minimum(starts[:,None]+np.arange(1,65),len(inp)-1)]; losses.append(np.asarray(evaluate(p,x,y)))
-  matrix=np.concatenate(losses); flat=matrix.ravel()[:len(val)]; settings['nats']=float(flat.mean()); settings['bpc']=float(flat.sum()/np.log(2)/meta['val']['characters']); settings['position_loss']=matrix[:-1].mean(0); settings['position_se']=matrix[:-1].std(0,ddof=1)/np.sqrt(len(matrix)-1); np.save(ART/'transformer_validation.npy',flat)
+  val=data['val']; inp=val; target_count=len(val)-1; losses=[]; evaluate=jax.jit(lambda p,x,y:optax.softmax_cross_entropy_with_integer_labels(transformer(p,x),y))
+  for begin in range(0,target_count,4096):
+   starts=np.arange(begin,min(begin+4096,target_count),64); x=inp[np.minimum(starts[:,None]+np.arange(64),len(inp)-1)]; y=inp[np.minimum(starts[:,None]+np.arange(1,65),len(inp)-1)]; losses.append(np.asarray(evaluate(p,x,y)))
+  matrix=np.concatenate(losses); flat=matrix.ravel()[:target_count]; settings['nats']=float(flat.mean()); settings['bpc']=float(flat.sum()/np.log(2)/meta['val']['characters']); settings['evaluation']='Consecutive 64-input-token windows, starting at the first held-out token; predict the following tokens. Initial token unscored; padded targets excluded.'; settings['scored_tokens']=target_count; complete=matrix[:target_count//64]; settings['position_loss']=complete.mean(0); settings['position_se']=complete.std(0,ddof=1)/np.sqrt(len(complete)); np.save(ART/'transformer_validation.npy',flat)
  save(kind,settings); print(settings,flush=True)
  plt.figure(figsize=(6,4)); h=np.array(history); plt.plot(h[:,0],h[:,1]); plt.xlabel('step'); plt.ylabel('training cross-entropy'); fig(kind+'_training')
 def load(kind):
