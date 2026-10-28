@@ -1,0 +1,14 @@
+{
+  "taylor-green": {
+    "M": 1.0,
+    "ripple_amplitude": 7e-05,
+    "initial_relative_distance": 3.5000000000000336e-05,
+    "final_relative_distance": 1.460999325440609e-07
+  },
+  "random": {
+    "M": 2.1825655820027916,
+    "ripple_amplitude": 0.0001527795907401954,
+    "initial_relative_distance": 2.0970568313009633e-05,
+    "final_relative_distance": 0.0019444675426434357
+  }
+}

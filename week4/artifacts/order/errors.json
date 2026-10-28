@@ -1,0 +1,25 @@
+{
+  "case": "taylor-green",
+  "n": 8,
+  "nu": 0.5,
+  "t_end": 2.0,
+  "method": "rk4",
+  "runs": [
+    {
+      "dt": 0.4,
+      "relative_velocity_error": 0.0005965287812493499
+    },
+    {
+      "dt": 0.25,
+      "relative_velocity_error": 8.02356950843688e-05
+    },
+    {
+      "dt": 0.2,
+      "relative_velocity_error": 3.1515756981608736e-05
+    }
+  ],
+  "log_log_fit": {
+    "slope": 4.246453912600933,
+    "intercept": -3.5359075505346067
+  }
+}

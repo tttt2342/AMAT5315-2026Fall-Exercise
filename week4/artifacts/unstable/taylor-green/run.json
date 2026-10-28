@@ -1,0 +1,11 @@
+{
+  "case": "taylor-green",
+  "n": 64,
+  "seed": null,
+  "k_band": null,
+  "method": "rk4",
+  "nu": 0.1,
+  "dt": 0.04,
+  "t_end": 4.0,
+  "snapshot_every": 0.1
+}

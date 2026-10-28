@@ -1,0 +1,77 @@
+{
+  "random_initial_max_speed": 2.4277931287350145,
+  "runs": [
+    {
+      "name": "taylor-green-rk4-dt0.032",
+      "case": "taylor-green",
+      "method": "rk4",
+      "dt": 0.032,
+      "reached_end": true,
+      "stopping_time": 8.0
+    },
+    {
+      "name": "taylor-green-rk4-dt0.033",
+      "case": "taylor-green",
+      "method": "rk4",
+      "dt": 0.033,
+      "reached_end": true,
+      "stopping_time": 8.0
+    },
+    {
+      "name": "random-rk4-dt0.038",
+      "case": "random",
+      "method": "rk4",
+      "dt": 0.038,
+      "reached_end": false,
+      "stopping_time": 0.918
+    },
+    {
+      "name": "random-rk4-dt0.040",
+      "case": "random",
+      "method": "rk4",
+      "dt": 0.04,
+      "reached_end": false,
+      "stopping_time": 0.86
+    },
+    {
+      "name": "random-rk4-dt0.036",
+      "case": "random",
+      "method": "rk4",
+      "dt": 0.036,
+      "reached_end": false,
+      "stopping_time": 1.036
+    },
+    {
+      "name": "random-rk4-dt0.034",
+      "case": "random",
+      "method": "rk4",
+      "dt": 0.034,
+      "reached_end": false,
+      "stopping_time": 1.5
+    },
+    {
+      "name": "random-rk4-dt0.032",
+      "case": "random",
+      "method": "rk4",
+      "dt": 0.032,
+      "reached_end": false,
+      "stopping_time": 1.852
+    },
+    {
+      "name": "random-rk4-dt0.030",
+      "case": "random",
+      "method": "rk4",
+      "dt": 0.03,
+      "reached_end": true,
+      "stopping_time": 10.0
+    },
+    {
+      "name": "random-euler-dt0.01",
+      "case": "random",
+      "method": "euler",
+      "dt": 0.01,
+      "reached_end": false,
+      "stopping_time": 1.14
+    }
+  ]
+}
