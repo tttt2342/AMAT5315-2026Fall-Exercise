@@ -1,0 +1,21 @@
+{
+  "stories": [
+    24867,
+    2763
+  ],
+  "vocab": 512,
+  "eos": 2,
+  "source": "https://huggingface.co/datasets/roneneldan/TinyStories/resolve/f54c09fd23315a6f9c86f9dc80f725de7d8f9c64/TinyStoriesV2-GPT4-valid.txt",
+  "train": {
+    "characters": 19853989,
+    "tokens": 9667035,
+    "characters_per_token": 2.0537826748325623,
+    "roundtrip_failures": 71
+  },
+  "val": {
+    "characters": 2213915,
+    "tokens": 1078996,
+    "characters_per_token": 2.0518287370852164,
+    "roundtrip_failures": 3
+  }
+}
