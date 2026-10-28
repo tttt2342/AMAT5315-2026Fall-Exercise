@@ -4,9 +4,15 @@ from counts import codes,fit,score,lookup
 from neural import *
 from generate import distribution
 from scaling import objective,optimum,law
+from memory import ratios,capacity
 from scipy.special import softmax
 
 class FormulaChecks(unittest.TestCase):
+ def test_memory_signal_and_capacity(self):
+  keys=np.eye(4); values=np.eye(4)
+  np.testing.assert_allclose(ratios(keys,values),0,atol=1e-12)
+  self.assertAlmostEqual(capacity(np.array([8,16,32]),np.array([.5,1.,2.])),16.)
+  self.assertAlmostEqual(capacity(np.array([8,32]),np.array([.5,2.])),16.)
  def test_count_against_hand_counts(self):
   t=np.array([1,2,1,2,2]); m=fit(t,2,2); p=(np.array([0,1,1])+0.1)/(2+512*.1)
   q=lookup(m[0],m[1],np.array([2*512+1,1*512+2,2*512+2],dtype=np.uint64))
