@@ -7,7 +7,7 @@
   "end_lr": 0.0006000000000000001,
   "weight_decay": 0.01,
   "backend": "cpu",
-  "seconds": 11.257299124961719,
+  "seconds": 13.283643499948084,
   "parameters": 328704,
   "history": [
     [
