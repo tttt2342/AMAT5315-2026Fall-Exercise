@@ -1,0 +1,72 @@
+{
+  "verified_at_utc": "2026-11-04T09:25:10.892875+00:00",
+  "rust_tests_passed": 7,
+  "asia_independent_numpy": {
+    "prior": {
+      "numpy_marginal_error": 2.220446049250313e-16,
+      "mass": 1.0
+    },
+    "AD": {
+      "numpy_marginal_error": 2.220446049250313e-16,
+      "mass": 0.004501375
+    },
+    "ADX": {
+      "numpy_marginal_error": 2.220446049250313e-16,
+      "mass": 0.00098822675
+    }
+  },
+  "bp_status": {
+    "bp-prior": {
+      "converged": true,
+      "residual": 7.025592607678988e-11,
+      "sweeps": 53
+    },
+    "bp-AD": {
+      "converged": true,
+      "residual": 9.943634804443491e-11,
+      "sweeps": 92
+    },
+    "bp-ADX": {
+      "converged": true,
+      "residual": 8.22506507347498e-11,
+      "sweeps": 93
+    },
+    "promedus-bp": {
+      "converged": false,
+      "residual": 2.1162649410655376e-10,
+      "sweeps": 1000
+    }
+  },
+  "plans_independently_recounted": true,
+  "published_PR_tolerance": 0.0001,
+  "published_MAR_tolerance": 1e-05,
+  "exact_plan_tolerance": 1e-10,
+  "new_text_files_contain_CJK": false,
+  "versions": {
+    "rust": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+    "python": "3.12.15",
+    "platform": "macOS-26.1-arm64-arm-64bit",
+    "numpy": "2.5.4",
+    "matplotlib": "3.11.2"
+  },
+  "sha256": {
+    "week9-learning-sheet.pdf": "27c21a357be350350d3d2ccc3cefdb3fd2be30aaea45b91764b7b70520c77397",
+    "asia.uai": "0d78314c96b1cbbfd94682f0e99f73461cb50a935a1da85cbc814c70e3fff32d",
+    "Cargo.lock": "a967ebdc16d309bf19c859d446ed31d2fbff85e960856dfccaab419c6964746b",
+    "uv.lock": "9103fa11a886b34c7610d989b13161b2912013d5d01c4e0689b66523e43cd9e5",
+    "promedus/Promedus_14.uai": "f213b76a7f145a06f39daa9061408981dbd525e4ce2e5156edb83a7073d71349",
+    "promedus/Promedus_14.uai.MAR": "06e3145bb59fd0a22af235af43bc7c45bee71a764647e152314bdded4f0d256f",
+    "promedus/Promedus_14.uai.PR": "d52ca345f79e79f0385f7bd91a3c2e3521eff165b3dcb7b29be1e56ca5f96dfc",
+    "promedus/Promedus_14.uai.evid": "e345a4ebecf02cdd9fdaf42e7456afa5f6ecafa989b6a3c15ef525abe736a403",
+    "src/bp.rs": "76ae75a0d959843ea3878df826fe5780a164c305fea8486a3dce534f1e2687d3",
+    "src/exact.rs": "d6ae8d78a0ce991fe90a45e0f7c8f069ceef8452c87289feb5e6c7fc9a1eb29f",
+    "src/main.rs": "dbc4f97fa697046961492383c7f2725f5ddfb5fb4ae6d3406fb553467a9533ad",
+    "src/model.rs": "541fc0cc80509a48c738ed58b1809eaab00f209b27361ca18730fe43cf8f8ce4",
+    "src/order.rs": "d67540cde669718be542bd82d126cd07ef7cf366d8443a9a14f603acabd3a26a",
+    "evidence/bp.png": "b56d6ea71c08190c7d2ebc6072906b96498ab19ca0d8a8d0d92b715c2faef1c2",
+    "evidence/joint.png": "748a498ec71f8e006dd0e320c3099821ca4023b49ecbc566386e2520cc8e8fb9",
+    "evidence/orders.png": "7fbfad2af1217e28be65965f7f8a45c12cad2f2afabc3c5b95358788525cfe05",
+    "evidence/posteriors.png": "4d9f1b2302ffe6fbb631e97ff91be7871960020dc04ef964d37b7360cf85bd10",
+    "evidence/promedus.png": "a752567739d93ab5fd643879d19c167dca2144fc674d4a06cc7b0aca806d8e48"
+  }
+}

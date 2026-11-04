@@ -1,0 +1,12 @@
+
+running 7 tests
+test bp::tests::zero_message_stops ... ok
+test bp::tests::small_damping_does_not_fake_convergence ... ok
+test model::tests::conditioning_preserves_scalar_weights ... ok
+test order::tests::chain_costs_and_bad_plan ... ok
+test model::tests::uai_axis_order_and_asia_masses ... ok
+test bp::tests::nonuniform_tree_matches_enumeration ... ok
+test exact::tests::heterogeneous_hyperedge_and_absolute_scale ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

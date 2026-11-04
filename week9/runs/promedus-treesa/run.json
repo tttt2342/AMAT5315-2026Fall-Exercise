@@ -1,0 +1,61 @@
+{
+  "checks": {
+    "ab_row_major": [
+      4.0,
+      4.0,
+      10.0,
+      8.0
+    ],
+    "ising_absolute_error": 3.552713678800501e-15,
+    "ising_contraction": 12.602562098951932,
+    "ising_enumeration": 12.602562098951928,
+    "trace": 12.0
+  },
+  "log10_partition": -7.8067463045824335,
+  "log_partition": -17.975697665717867,
+  "observations": {
+    "123": 1,
+    "14": 1,
+    "147": 1,
+    "26": 1,
+    "28": 1,
+    "29": 1,
+    "4": 1,
+    "41": 1,
+    "47": 1
+  },
+  "planning_seconds": 0.145225333,
+  "query_costs": {
+    "102": {
+      "largest_tensor": 524288,
+      "runtime_seconds": 0.021857,
+      "work": 14417750
+    },
+    "139": {
+      "largest_tensor": 262144,
+      "runtime_seconds": 0.021470542,
+      "work": 11796310
+    },
+    "59": {
+      "largest_tensor": 262144,
+      "runtime_seconds": 0.021164125,
+      "work": 11770710
+    }
+  },
+  "runtime_seconds": 0.227295792,
+  "scalar_contraction_seconds": 0.010221208,
+  "selected_marginals": {
+    "102": [
+      0.8502465676808095,
+      0.14975343231919044
+    ],
+    "139": [
+      0.3824779816191097,
+      0.6175220183808904
+    ],
+    "59": [
+      0.802411741811025,
+      0.1975882581889749
+    ]
+  }
+}

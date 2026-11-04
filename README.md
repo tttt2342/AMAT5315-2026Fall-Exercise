@@ -35,3 +35,7 @@ For a later week, replace `week1/` with the relevant folder, for example:
 ```bash
 python3 -m pytest week2/
 ```
+
+## Week 9
+
+[Probabilistic inference by tensor contraction](week9/README.md): ASIA inference, saved contraction orders, belief propagation, and the Promedus UAI benchmark, with reproducible verification evidence.

@@ -1,0 +1,111 @@
+{
+  "greedy": {
+    "log10_partition": -7.806746304582437,
+    "published_PR_error": 3.6954175630654618e-06,
+    "published_MAR_error": 4.3231919033548394e-07,
+    "selected_marginals": {
+      "102": [
+        0.8502465676808096,
+        0.14975343231919033
+      ],
+      "139": [
+        0.3824779816191095,
+        0.6175220183808905
+      ],
+      "59": [
+        0.802411741811025,
+        0.19758825818897485
+      ]
+    },
+    "work": 3368805881,
+    "largest_tensor": 16777216,
+    "largest_generated_tensor": 16777216,
+    "planning_seconds": 0.017192416,
+    "scalar_contraction_seconds": 0.204956291,
+    "runtime_seconds": 0.746100667,
+    "query_costs": {
+      "102": {
+        "largest_tensor": 16777216,
+        "runtime_seconds": 0.165467292,
+        "work": 3368805882
+      },
+      "139": {
+        "largest_tensor": 16777216,
+        "runtime_seconds": 0.173128416,
+        "work": 3368805882
+      },
+      "59": {
+        "largest_tensor": 16777216,
+        "runtime_seconds": 0.170240625,
+        "work": 3368805882
+      }
+    }
+  },
+  "treesa": {
+    "log10_partition": -7.8067463045824335,
+    "published_PR_error": 3.6954175666181754e-06,
+    "published_MAR_error": 4.3231919044650624e-07,
+    "selected_marginals": {
+      "102": [
+        0.8502465676808095,
+        0.14975343231919044
+      ],
+      "139": [
+        0.3824779816191097,
+        0.6175220183808904
+      ],
+      "59": [
+        0.802411741811025,
+        0.1975882581889749
+      ]
+    },
+    "work": 11770528,
+    "largest_tensor": 262144,
+    "largest_generated_tensor": 262144,
+    "planning_seconds": 0.145225333,
+    "scalar_contraction_seconds": 0.010221208,
+    "runtime_seconds": 0.227295792,
+    "query_costs": {
+      "102": {
+        "largest_tensor": 524288,
+        "runtime_seconds": 0.021857,
+        "work": 14417750
+      },
+      "139": {
+        "largest_tensor": 262144,
+        "runtime_seconds": 0.021470542,
+        "work": 11796310
+      },
+      "59": {
+        "largest_tensor": 262144,
+        "runtime_seconds": 0.021164125,
+        "work": 11770710
+      }
+    }
+  },
+  "bp": {
+    "sweeps": 1000,
+    "residual": 2.1162649410655376e-10,
+    "converged": false,
+    "cumulative_update_work": 22446424,
+    "runtime_seconds": 0.194216292,
+    "selected_marginals": {
+      "59": [
+        0.9999143820197286,
+        8.561798027143074e-05
+      ],
+      "102": [
+        0.9997492394635559,
+        0.00025076053644409253
+      ],
+      "139": [
+        0.00012506418345254456,
+        0.9998749358165474
+      ]
+    },
+    "published_MAR_error": 0.38235293581654745
+  },
+  "exact_plan_max_difference": 3.552713678800501e-15,
+  "work_speedup": 286.20686183321595,
+  "largest_tensor_ratio": 64.0
+}

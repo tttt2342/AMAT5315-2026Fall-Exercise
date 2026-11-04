@@ -38,3 +38,12 @@ Normalize every message proposal. Compute the maximum absolute undamped message
 change at the same state as the recorded beliefs, including the returned state.
 """
 stdout = "BP sweep, undamped residual and cumulative update work"
+
+[args.benchmark]
+evidence = "also accepts a UAI evidence-file path; no implicit benchmark observations"
+queries = "comma-separated query IDs; required for models other than eight-variable ASIA"
+order = "also accepts treesa, requiring --seed 42; omeco 0.2.6 uses trial seeds 42 and 43"
+[writes.benchmark]
+"<out>/query-<ID>-order.json" = "saved scalar tree topology with recomputed query axes"
+"<out>/query-<ID>-complexity.json" = "independently recountable query costs"
+"<out>/run.json" = "log partition scale, state-ordered query marginals and timings"
