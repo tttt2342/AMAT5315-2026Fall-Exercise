@@ -1,0 +1,218 @@
+{
+  "work": 104,
+  "largest_tensor": 16,
+  "largest_generated_tensor": 16,
+  "largest_step": 13,
+  "steps": [
+    {
+      "id": 8,
+      "children": [
+        2,
+        6
+      ],
+      "inputs": [
+        [
+          2
+        ],
+        [
+          6,
+          5
+        ]
+      ],
+      "union": [
+        2,
+        5,
+        6
+      ],
+      "retained": [
+        2,
+        5
+      ],
+      "work": 8,
+      "entries": 4
+    },
+    {
+      "id": 9,
+      "children": [
+        8,
+        7
+      ],
+      "inputs": [
+        [
+          2,
+          5
+        ],
+        [
+          5,
+          4
+        ]
+      ],
+      "union": [
+        2,
+        4,
+        5
+      ],
+      "retained": [
+        2,
+        4,
+        5
+      ],
+      "work": 8,
+      "entries": 8
+    },
+    {
+      "id": 10,
+      "children": [
+        9,
+        3
+      ],
+      "inputs": [
+        [
+          2,
+          4,
+          5
+        ],
+        [
+          3,
+          2
+        ]
+      ],
+      "union": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "retained": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "work": 16,
+      "entries": 16
+    },
+    {
+      "id": 11,
+      "children": [
+        10,
+        0
+      ],
+      "inputs": [
+        [
+          2,
+          3,
+          4,
+          5
+        ],
+        []
+      ],
+      "union": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "retained": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "work": 16,
+      "entries": 16
+    },
+    {
+      "id": 12,
+      "children": [
+        1,
+        4
+      ],
+      "inputs": [
+        [
+          1
+        ],
+        [
+          4,
+          2
+        ]
+      ],
+      "union": [
+        1,
+        2,
+        4
+      ],
+      "retained": [
+        1,
+        2,
+        4
+      ],
+      "work": 8,
+      "entries": 8
+    },
+    {
+      "id": 13,
+      "children": [
+        12,
+        5
+      ],
+      "inputs": [
+        [
+          1,
+          2,
+          4
+        ],
+        [
+          5,
+          3,
+          1
+        ]
+      ],
+      "union": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "retained": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "work": 32,
+      "entries": 16
+    },
+    {
+      "id": 14,
+      "children": [
+        11,
+        13
+      ],
+      "inputs": [
+        [
+          2,
+          3,
+          4,
+          5
+        ],
+        [
+          2,
+          3,
+          4,
+          5
+        ]
+      ],
+      "union": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "retained": [],
+      "work": 16,
+      "entries": 1
+    }
+  ]
+}
