@@ -1,6 +1,7 @@
 mod model;
 mod exact;
 mod order;
+mod bp;
 use anyhow::{Result,ensure};
 use clap::Parser;
 use serde_json::json;
@@ -18,13 +19,25 @@ struct Args {
     #[arg(long)] seed:Option<u64>,
     #[arg(long, conflicts_with="analyze")] plan:Option<PathBuf>,
     #[arg(long)] analyze:Option<PathBuf>,
+    #[arg(long,default_value="exact")] method:String,
+    #[arg(long)] damping:Option<f64>,
+    #[arg(long)] tolerance:Option<f64>,
+    #[arg(long)] max_sweeps:Option<usize>,
 }
 fn main()->Result<()> {
     let args=Args::parse();let start=Instant::now();
     fs::create_dir_all(&args.out)?;
     let model=Model::load(&args.model)?;let obs=observations(&args.evidence)?;model.validate_evidence(&obs)?;
-    ensure!(model.dims.len()==8,"This build supports ASIA");
-    let conditioned=model.conditioned(&obs);let mut cpu=CpuBackend::new();
+    let conditioned=model.conditioned(&obs);
+    ensure!(args.method=="exact"||args.method=="bp","Unknown inference method");
+    if args.method=="bp" {
+        ensure!(args.order.is_none()&&args.seed.is_none()&&args.plan.is_none()&&args.analyze.is_none(),"Ordering options only apply to exact inference");
+        let result=bp::run(&conditioned,&obs,args.damping.ok_or_else(||anyhow::anyhow!("BP requires damping"))?,args.tolerance.ok_or_else(||anyhow::anyhow!("BP requires tolerance"))?,args.max_sweeps.ok_or_else(||anyhow::anyhow!("BP requires max-sweeps"))?)?;
+        fs::write(args.out.join("run.json"),serde_json::to_string_pretty(&result)?)?;return Ok(());
+    }
+    ensure!(args.damping.is_none()&&args.tolerance.is_none()&&args.max_sweeps.is_none(),"BP settings only apply to BP");
+    ensure!(model.dims.len()==8,"Exact benchmark support is in the next build");
+    let mut cpu=CpuBackend::new();
     let planning=Instant::now();
     let saved=if let Some(path)=args.plan.as_ref().or(args.analyze.as_ref()) {
         ensure!(args.seed.is_none(),"Seed only applies to random ordering");

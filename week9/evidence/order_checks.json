@@ -1,0 +1,12 @@
+{
+  "random": {
+    "work": 104,
+    "largest_tensor": 16,
+    "steps": 7
+  },
+  "greedy": {
+    "work": 62,
+    "largest_tensor": 8,
+    "steps": 7
+  }
+}
