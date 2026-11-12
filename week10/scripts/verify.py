@@ -51,6 +51,26 @@ def replay(directory):
         assert len(vector) == 1
         closure = vector[0]
         log_scale = math.fsum(map(math.log, details["row_scales"]))
+    elif run["method"] == "trg":
+        details = read_json(directory / "trg.json")
+        steps = details["steps"]
+        assert len(steps) == 2 * (run["l"].bit_length() - 1)
+        for i, step in enumerate(steps):
+            assert step["sites_before_split"] == run["sites"] >> i
+            for cut in ("lu_rd", "dl_ur"):
+                split = step[cut]
+                spectrum = read_tensor(directory, split["singular_values"])
+                assert np.all(spectrum[:-1] >= spectrum[1:]) and np.all(spectrum >= 0)
+                rank = split["left"]["shape"][-1]
+                assert rank == split["right"]["shape"][0] == min(run["chi"], len(spectrum))
+        tensor = read_tensor(directory, details["final"])
+        first, second = steps[-1]["lu_rd"], steps[-1]["dl_ur"]
+        s1, s3 = (read_tensor(directory, first[side]) for side in ("left", "right"))
+        s2, s4 = (read_tensor(directory, second[side]) for side in ("left", "right"))
+        regrouped = np.einsum("war,abu,lbg,dgw->ruld", s1, s2, s3, s4, optimize=True)
+        np.testing.assert_allclose(regrouped, tensor, atol=1e-12, rtol=1e-10)
+        closure = np.einsum("ijij->", tensor)
+        log_scale = math.fsum(step["sites_before_split"] * math.log(step["scale"]) for step in steps)
     else:
         raise ValueError(run["method"])
 
@@ -86,7 +106,10 @@ def curvature(k, h, minus, center, plus):
 
 
 def small_checks(binary, method):
-    cases = [(4, k, 8, 1e-8, k == 0.44) for k in (0., 0.44, 0.7)]
+    if method == "boundary":
+        cases = [(4, k, 8, 1e-8, k == 0.44) for k in (0., 0.44, 0.7)]
+    else:
+        cases = [(2, 0.44, 16, 1e-8, True), (4, 0.44, 8, 2e-3, False)]
     checks = []
     with tempfile.TemporaryDirectory(prefix="thermo-checks-") as tmp:
         out = Path(tmp)
@@ -112,7 +135,7 @@ def small_checks(binary, method):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("method", choices=["boundary"])
+    parser.add_argument("method", choices=["boundary", "trg"])
     parser.add_argument("--binary", type=Path, default=Path(".tool/bin/thermo"))
     parser.add_argument("--replay", nargs="*", type=Path, default=[])
     args = parser.parse_args()

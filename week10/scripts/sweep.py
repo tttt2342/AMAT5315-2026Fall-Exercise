@@ -16,7 +16,7 @@ import numpy as np
 
 from verify import curvature, replay, run_solver
 
-SIZES = {"boundary": (16, 32, 64)}
+SIZES = {"boundary": (16, 32, 64), "trg": (64, 256, 1024)}
 EXACT_TC = 2 / math.log(1 + math.sqrt(2))
 COARSE_H = 0.0025
 FINE_H = 0.00125

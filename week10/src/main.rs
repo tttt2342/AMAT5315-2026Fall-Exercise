@@ -1,4 +1,5 @@
 mod boundary;
+mod trg;
 
 use anyhow::{Result, ensure};
 use clap::{Parser, ValueEnum};
@@ -9,6 +10,7 @@ use thermo::evidence;
 #[derive(Clone, Copy, ValueEnum)]
 enum Method {
     Boundary,
+    Trg,
 }
 
 #[derive(Parser)]
@@ -48,6 +50,7 @@ fn main() -> Result<()> {
     let tensors = (!summary_only).then_some(out.as_path());
     let ((log_z, elapsed), method, geometry) = match method {
         Method::Boundary => (boundary::solve(l, k, chi, tensors)?, "boundary", "open"),
+        Method::Trg => (trg::solve(l, k, chi, tensors)?, "trg", "periodic"),
     };
     let elapsed = elapsed.as_secs_f64();
     let result = json!({
