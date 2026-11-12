@@ -1,0 +1,6 @@
+/target/
+/artifacts/
+/runs/
+/.tool/
+/.venv/
+/week10-learning-sheet.pdf
