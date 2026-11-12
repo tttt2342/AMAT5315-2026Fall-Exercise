@@ -4,6 +4,7 @@ use std::ffi::c_char;
 #[cfg_attr(target_os = "macos", link(name = "Accelerate", kind = "framework"))]
 #[cfg_attr(not(target_os = "macos"), link(name = "lapack"), link(name = "blas"))]
 unsafe extern "C" {
+    #[cfg_attr(target_os = "macos", link_name = "dgesdd$NEWLAPACK")]
     fn dgesdd_(
         job: *const c_char,
         m: &i32,
@@ -20,6 +21,24 @@ unsafe extern "C" {
         iwork: *mut i32,
         info: &mut i32,
     );
+    #[cfg_attr(target_os = "macos", link_name = "dgesvd$NEWLAPACK")]
+    fn dgesvd_(
+        jobu: *const c_char,
+        jobvt: *const c_char,
+        m: &i32,
+        n: &i32,
+        a: *mut f64,
+        lda: &i32,
+        s: *mut f64,
+        u: *mut f64,
+        ldu: &i32,
+        vt: *mut f64,
+        ldvt: &i32,
+        work: *mut f64,
+        lwork: &i32,
+        info: &mut i32,
+    );
+    #[cfg_attr(target_os = "macos", link_name = "dgemm$NEWLAPACK")]
     fn dgemm_(
         ta: *const c_char,
         tb: *const c_char,
@@ -50,6 +69,7 @@ pub fn svd(mut a: Vec<f64>, rows: usize, cols: usize) -> Result<Svd> {
     let mut u = vec![0.; rows * q];
     let mut vt = vec![0.; q * cols];
     let mut s = vec![0.; q];
+    let original = a.clone();
     let mut iwork = vec![0; 8 * q];
     let mut info = 0;
     let mut query = [0.];
@@ -95,6 +115,39 @@ pub fn svd(mut a: Vec<f64>, rows: usize, cols: usize) -> Result<Svd> {
             &mut info,
         );
     }
+    // Retry a nonconvergent divide-and-conquer solve with the QR-based SVD.
+    if info > 0 {
+        a = original;
+        let mut decompose = |work: &mut [f64], lwork| unsafe {
+            dgesvd_(
+                job,
+                job,
+                &m,
+                &n,
+                a.as_mut_ptr(),
+                &m,
+                s.as_mut_ptr(),
+                vt.as_mut_ptr(),
+                &m,
+                u.as_mut_ptr(),
+                &ldvt,
+                work.as_mut_ptr(),
+                &lwork,
+                &mut info,
+            );
+            info
+        };
+        ensure!(
+            decompose(&mut query, -1) == 0,
+            "fallback SVD workspace query failed"
+        );
+        let lwork = query[0] as i32;
+        work.resize(lwork as usize, 0.);
+        ensure!(
+            decompose(&mut work, lwork) == 0,
+            "fallback SVD failed ({info})"
+        );
+    }
     ensure!(info == 0, "SVD failed ({info})");
     Ok(Svd { u, s, vt })
 }
@@ -124,4 +177,25 @@ pub fn matmul(a: &[f64], b: &[f64], rows: usize, inner: usize, cols: usize) -> V
         );
     }
     c
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn thin_svd_reconstructs_both_rectangular_orientations() -> Result<()> {
+        let input = [1., 2., 3., 5., 7., 11.];
+        for (rows, cols) in [(2, 3), (3, 2)] {
+            let Svd { mut u, s, vt } = svd(input.to_vec(), rows, cols)?;
+            for row in u.chunks_exact_mut(s.len()) {
+                for (entry, value) in row.iter_mut().zip(&s) {
+                    *entry *= value;
+                }
+            }
+            let actual = matmul(&u, &vt, rows, s.len(), cols);
+            assert!(actual.iter().zip(input).all(|(a, b)| (a - b).abs() < 1e-12));
+        }
+        Ok(())
+    }
 }
